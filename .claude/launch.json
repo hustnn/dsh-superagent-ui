@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "console-mock",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/dev.ts", "--mock"],
+      "port": 5173
+    },
+    {
+      "name": "console",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/dev.ts"],
+      "port": 5173
+    }
+  ]
+}

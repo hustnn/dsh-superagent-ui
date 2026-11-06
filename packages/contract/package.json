@@ -1,0 +1,13 @@
+{
+  "name": "@dsh-superagent-ui/contract",
+  "private": true,
+  "type": "module",
+  "description": "Types of the console BFF's HTTP API, shared by the BFF and the web console. Types only: nothing here exists at runtime.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "echo 'contract: types only, nothing to test'"
+  }
+}

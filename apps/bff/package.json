@@ -1,0 +1,20 @@
+{
+  "name": "@dsh-superagent-ui/bff",
+  "private": true,
+  "type": "module",
+  "description": "Local BFF: the only door to dsh-superagent's management API. Runs on Node's built-in TypeScript support, with no build step.",
+  "scripts": {
+    "dev": "CONSOLE_DEV_ORIGIN=http://127.0.0.1:5173 node --watch --watch-path=src src/index.ts",
+    "start": "node src/index.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dsh-superagent-ui/companion": "workspace:*",
+    "@hono/node-server": "1.19.17",
+    "hono": "4.13.13"
+  },
+  "devDependencies": {
+    "@dsh-superagent-ui/contract": "workspace:*"
+  }
+}

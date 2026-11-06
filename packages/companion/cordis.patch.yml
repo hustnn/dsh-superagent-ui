@@ -1,0 +1,5 @@
+# dsh-superagent-ui companion bundle layer: inserts the plugin into the profile it is added to, the same profile as dsh-superagent
+# (docs/deployment.md). It needs dsh-superagent's `orchestrator` service and starts once that service exists.
+- insert:
+    - id: dsh-superagent-ui-companion
+      name: '@dsh-superagent-ui/companion'

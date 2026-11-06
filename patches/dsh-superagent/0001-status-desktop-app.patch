@@ -1,0 +1,49 @@
+Let scripts/dsh-superagent find a service run by the DeepSeek Harness desktop app.
+
+On macOS, `dsh` from the DeepSeek Harness app runs the service as a process named
+"DeepSeek Harness", not node or dsh, and ps prints that name with a space in it.
+Without this patch `status` reports a running service as stopped (exit 1), `start`
+cannot see it, and the hourly check's `restart` would start a second instance.
+
+Applies to dsh-superagent-prototype 8c32a9d (the commit upstream/ pins).
+
+diff --git a/scripts/dsh-superagent b/scripts/dsh-superagent
+index 59c0429..3fb7c56 100755
+--- a/scripts/dsh-superagent
++++ b/scripts/dsh-superagent
+@@ -39,6 +39,10 @@ def stopped(profile):
+     return (control(profile) / 'manually-stopped').exists()
+ 
+ 
++# The DSH service runs as node or dsh from an npm install, or as the DeepSeek Harness desktop app's own runtime on macOS.
++SERVICE_NAMES = ('node', 'dsh', 'DeepSeek Harness')
++
++
+ def serves(args, profile):
+     """Return whether command-line arguments belong to the main DSH service process for `profile`."""
+     words, matched, value = [], False, False
+@@ -60,17 +64,21 @@ def ps(*options, check=False):
+     for line in result.stdout.splitlines():
+         parts = line.split(None, 2)
+         if len(parts) == 3 and parts[0].isdigit():
+-            yield int(parts[0]), parts[1], parts[2].split()
++            name, rest = parts[1], parts[2]
++            # The desktop app's runtime reports a command name with a space in it.
++            if name == 'DeepSeek' and rest.startswith('Harness '):
++                name, rest = 'DeepSeek Harness', rest[len('Harness '):]
++            yield int(parts[0]), name, rest.split()
+ 
+ 
+ def running(pid, profile):
+     """Return whether `pid` is currently running the DSH service for `profile` (`ps -p` returns nothing once exited)."""
+-    return any(found == pid and name in ('node', 'dsh') and serves(args, profile) for found, name, args in ps('-p', str(pid)))
++    return any(found == pid and name in SERVICE_NAMES and serves(args, profile) for found, name, args in ps('-p', str(pid)))
+ 
+ 
+ def processes(profile):
+     """Return PIDs of all running DSH service processes for `profile`, including instances started outside this script and the recorded `service.pid` while still running."""
+-    found = [pid for pid, name, args in ps('-ax', check=True) if name in ('node', 'dsh') and serves(args, profile)]
++    found = [pid for pid, name, args in ps('-ax', check=True) if name in SERVICE_NAMES and serves(args, profile)]
+     try:
+         pid = int((control(profile) / 'service.pid').read_text())
+     except (OSError, ValueError):

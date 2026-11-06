@@ -1,0 +1,30 @@
+{
+  "name": "dsh-superagent-ui",
+  "private": true,
+  "description": "The UI for dsh-superagent: a local web UI and BFF that sit beside a running dsh-superagent.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hustnn/dsh-superagent-ui.git"
+  },
+  "type": "module",
+  "packageManager": "pnpm@10.18.3",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.ts",
+    "dev:mock": "node scripts/dev.ts --mock",
+    "build": "pnpm --filter ./packages/companion --filter ./apps/console run build",
+    "start": "node apps/bff/src/index.ts",
+    "console:url": "node apps/bff/src/url.ts",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "check": "pnpm typecheck && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  }
+}

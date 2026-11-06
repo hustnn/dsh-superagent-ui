@@ -1,0 +1,32 @@
+{
+  "name": "@dsh-superagent-ui/companion",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "DSH plugin installed beside dsh-superagent: what the console needs that upstream's management API does not offer: a worker Session's transcript, the messages the agent sent, and switching the running main Session's model.",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./lib/index.js"
+    },
+    "./api": "./src/api.ts",
+    "./http": "./src/http.ts",
+    "./host": "./src/host.ts",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "manifestVersion": 1
+  }
+}
