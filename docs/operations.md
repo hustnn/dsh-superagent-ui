@@ -1,3 +1,5 @@
+中文 | [English](operations.en.md)
+
 # 日常运行
 
 安装好之后的启停、更新、升级和排错。安装步骤见 [`docs/install/`](install)。这里的路径都按默认位置写：控制台 `~/src/dsh-superagent-ui`，服务 `~/src/dsh-superagent`。

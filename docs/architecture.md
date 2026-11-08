@@ -1,3 +1,5 @@
+中文 | [English](architecture.en.md)
+
 # 架构
 
 ```

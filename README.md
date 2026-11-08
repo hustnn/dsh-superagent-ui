@@ -1,6 +1,6 @@
-# dsh-superagent-ui
+中文 | [English](README.en.md)
 
-A local web console for operating [dsh-superagent](https://github.com/deepseek-ai/dsh-superagent-prototype). The UI and the docs are in Chinese.
+# dsh-superagent-ui
 
 给 [dsh-superagent](https://github.com/deepseek-ai/dsh-superagent-prototype) 的 operator 用的本地控制台。团队成员照旧在 GitHub 或飞书里找 agent；你在这里处理需要你的事，看它是否健康，再逐步放手让它主动干活。
 
