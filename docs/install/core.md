@@ -1,3 +1,5 @@
+中文 | [English](core.en.md)
+
 # 安装：dsh-superagent + GitHub + 控制台
 
 这份指南写给执行安装的 agent，人也可以照着做。这是最小可用安装，不涉及飞书；飞书在 [feishu.md](feishu.md) 里单独安装。

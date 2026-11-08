@@ -1,3 +1,5 @@
+中文 | [English](design.en.md)
+
 # 设计
 
 这份文档说明控制台要做成什么样、为什么。想看实际效果，按[预览指南](install/preview.md)用示例数据跑起来。
