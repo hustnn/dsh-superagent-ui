@@ -62,7 +62,7 @@ The access mode (`security/access.ts`) decides by level whether to allow a reque
 
 Thread keys contain `/` and `:`, so they go in query parameters rather than the path.
 
-A message's path (`messagePath` in `views/threads.ts`) is derived from the disposition upstream recorded and the Decision that consumed it: whether the source filtered it, which Tickets it went to, whether a worker decided directly, whether it was handed back, whether it is queued or being evaluated, and finally accepted, would have accepted (observe mode), ignored, stopped, or evaluation incomplete. The Chinese wording of reason codes follows upstream's own panel (`views/reasons.ts`).
+A message's path (`messagePath` in `views/threads.ts`) is derived from the disposition upstream recorded and the Decision that consumed it: whether the source filtered it, which Tickets it went to, whether a worker decided directly, whether it was handed back, whether it is queued or being evaluated, and finally accepted, would have accepted (observe mode), ignored, stopped, or evaluation incomplete. Reason codes are worded as upstream's own panel words them, in English or Chinese (`views/reasons.ts`).
 
 ## Saving policy
 
@@ -83,6 +83,17 @@ With mock data a separate `console-mock.db` is used, so sample data never mixes 
 ## Recipes
 
 A recipe first computes a plan against the current settings (`apps/bff/src/views/recipes.ts`): each step adds a line only if it would actually change something, so an empty plan means everything is already set. Applying saves sources, policy and prompts in that order, each with the revision it read. If any block was changed elsewhere, that save returns 409; blocks already saved aren't rolled back, and the page asks you to reload before applying again (the remaining changes are computed as usual). A recipe never changes the proactive mode.
+
+## Languages
+
+The console speaks English and Chinese, English by default. The choice lives in the browser's `localStorage`, and switching reloads the page, so each module's tables of words are built once, in one language.
+
+Words come from two places:
+
+- **The console:** `t(english, chinese)` from `apps/console/src/i18n.ts`, written where the words are used.
+- **The BFF:** sentences inside views (problems, reasons, history, message paths, recipe changes, error messages) are made by the BFF. Every console request carries an `x-console-lang` header; middleware in `server.ts` runs the whole request in that language with `AsyncLocalStorage`, so views call `t()` from `apps/bff/src/i18n.ts` without passing the language down. Without the header, English. Upstream's own bilingual fields (`{ zh, en }`) are read with `local()`.
+
+The event stream (SSE) only says which views changed and carries no words, so it doesn't depend on the language. The built-in sample data is in English and doesn't switch: it stands for what people and the agent said, not for the interface.
 
 ## Live updates
 
@@ -113,7 +124,7 @@ BFF ──HTTP──▶ DSH Web (127.0.0.1:3082)
 - **Injected services:** `orchestrator` (dsh-superagent's Runtime, which Source plugins also use to register sources), `webServer` (registers routes), `sessionPersistence` (opens a Session's event log read-only, without disturbing the writer), and `sessionController` and `agentDefaultModel` (switching the model). These interfaces are mirrored by hand in `packages/companion/src/host.ts`, the same way the BFF mirrors the admin API.
 - **Reads are read-only:** session records go through DSH's session storage API, which handles storage format migrations; messages are queried directly from dsh-superagent's `outbox` table with SELECT only.
 - **The one write: switching the main Session's model (since 0.3.0).** Upstream only writes a Session's model before its first model call, and the main Session keeps the same one, so upstream's setting never reaches a running main Session. The companion calls DSH's `selectModel` (the same interface as picking a model by hand in the DSH UI), which takes effect from the next model call. `selectModel` also saves the choice as the profile's default model, so the companion then writes the previous default back; only the main Session changes model, and workers left on "default" don't follow. It writes to DSH's Session and profile and never touches dsh-superagent's own data. The BFF calls it when the model setting changes, and so does the button on the Execution page when the setting and the actual model differ (for example a setting saved before an upgrade).
-- **The projection lives in the plugin:** the plugin's `src/transcript.ts` turns DSH's event format into readable steps (the work given to it, reasoning, what it said, tool calls and results, turns) and the models used (each model call records its route). Context DSH injects itself (instructions, runtime environment, skill list, time) doesn't count as work given to it. The BFF only handles the Chinese wording and reads dsh-superagent's dispatch JSON as "dispatch / new message".
+- **The projection lives in the plugin:** the plugin's `src/transcript.ts` turns DSH's event format into readable steps (the work given to it, reasoning, what it said, tool calls and results, turns) and the models used (each model call records its route). Context DSH injects itself (instructions, runtime environment, skill list, time) doesn't count as work given to it. The BFF only handles the wording and reads dsh-superagent's dispatch JSON as "dispatch / new message".
 - **Same-origin rules:** like the admin API, only loopback Hosts are accepted and the `x-superagent-ui-request: 1` header is required.
 - **Optional:** without it, DSH returns an empty 404 for these paths, the BFF treats that as "not installed", and the relevant places show an install hint. Companion errors never mark dsh-superagent as unreachable.
 - **Messages have no time:** upstream's send records carry no timestamp, so message volume is counted per Ticket, with the Ticket's time defining the period (the Insights page uses Tickets opened or ended in the last 30 days).

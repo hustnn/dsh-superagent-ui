@@ -20,8 +20,6 @@ GitHub ──▶ dsh-superagent (DSH superagent profile, 127.0.0.1:3082) ──�
     dsh-superagent-ui (BFF 127.0.0.1:3090, opened in a browser)
 ```
 
-The console UI is in Chinese. Where this guide names a page or button, the Chinese label follows in parentheses.
-
 ## Rules
 
 1. **Go in order.** For a step with a check, run the check first and skip to the next step if it passes. That makes this guide safe to stop and run again.
@@ -329,7 +327,7 @@ If nothing happens, see [Troubleshooting](../operations.en.md#troubleshooting).
 ## Done when
 
 - [ ] `scripts/dsh-superagent status` exits 0 and `errors` is empty
-- [ ] The console opens, the Health page (健康) shows GitHub as working, and the companion plugin shows as installed
+- [ ] The console opens, the Health page shows GitHub as working, and the companion plugin shows as installed
 - [ ] The first request created a Ticket, and the agent replied on GitHub and opened a PR
 
 ## Hand over to the operator
@@ -338,7 +336,7 @@ When the install is done, tell the operator in one short message:
 
 - **Console:** the link, and that later it opens with `cd ~/src/dsh-superagent-ui && pnpm console:url`.
 - **Usage:** people on the allow list @ `<agent-login>` in the repository; anything that needs the operator shows up on the console's home page.
-- **Merging:** by default a person merges PRs; the agent does not merge on its own. This and commit attribution can be changed under Delivery requirements on the Prompts page (提示词).
-- **Letting go:** proactive work starts in "observe" mode, which only records and does not act. Review its judgments on the Calibration page (校准) first, then decide whether to let it act.
+- **Merging:** by default a person merges PRs; the agent does not merge on its own. This and commit attribution can be changed under Delivery requirements on the Prompts page.
+- **Letting go:** proactive work starts in "observe" mode, which only records and does not act. Review its judgments on the Calibration page first, then decide whether to let it act.
 - **Restarts:** neither the service nor the console starts on boot; see [Operations](../operations.en.md).
 - **Feishu:** to add Feishu, give the agent the "Add Feishu" prompt from the README.

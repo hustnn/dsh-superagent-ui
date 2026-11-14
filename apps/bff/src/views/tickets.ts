@@ -5,6 +5,7 @@
 import type { BoardView, Connection, PersonAction, SaidMessage, TicketCard, TicketStageKey, TicketThread, TicketView, TimelineEntry } from '@dsh-superagent-ui/contract'
 import type { UpstreamClient } from '../upstream/client.ts'
 import type { ActorView, BasisFact, InputView, ReportState, TicketPageView, TicketRow } from '../upstream/types.ts'
+import { list, local, t } from '../i18n.ts'
 import { reasonOf, reasonText } from './reasons.ts'
 import { personLink, statusOf } from './shared.ts'
 
@@ -48,15 +49,15 @@ export async function buildBoard(upstream: BoardReads, connection: () => Connect
   return { connection: connection(), status: statusOf(state, overview), columns, endedTotal: ended.total }
 }
 
-export const actorName = (actor: ActorView) => actor.name?.zh || actor.id || '自动消息'
-const SOURCES: Record<string, string> = { github: 'GitHub', feishu: '飞书' }
-export const sourceName = (source: string) => SOURCES[source] ?? source
+export const actorName = (actor: ActorView) => local(actor.name) || actor.id || t('Automated message', '自动消息')
+const SOURCES: Record<string, [string, string]> = { github: ['GitHub', 'GitHub'], feishu: ['Feishu', '飞书'] }
+export const sourceName = (source: string) => SOURCES[source] ? t(...SOURCES[source]) : source
 
-const CELLS = {
-  listedUnaddressed: '在名单内，但没有 @ 它',
-  unlistedAddressed: '不在名单内，但 @ 了它',
-  unlistedUnaddressed: '不在名单内，也没有 @ 它',
-} as const
+const CELLS: Record<'listedUnaddressed' | 'unlistedAddressed' | 'unlistedUnaddressed', [string, string]> = {
+  listedUnaddressed: [' is on the list but did not @ it', '在名单内，但没有 @ 它'],
+  unlistedAddressed: [' is not on the list but did @ it', '不在名单内，但 @ 了它'],
+  unlistedUnaddressed: [' is not on the list and did not @ it', '不在名单内，也没有 @ 它'],
+}
 
 /** The Mandate in one sentence: who asked, how the gate admitted it, and under which Policy version and rules. */
 export function whySentence(page: Pick<TicketPageView, 'mandate' | 'basis'>): string {
@@ -66,52 +67,56 @@ export function whySentence(page: Pick<TicketPageView, 'mandate' | 'basis'>): st
   const where = sourceName(page.mandate.actor.source)
   const parts: string[] = []
   const admission = fact('admission'), addressed = fact('addressed')
-  if (fact('bot')) parts.push(`${who} 是 ${where} bot 列表里的机器人，只能产生推断候选`)
-  else if (fact('followup')) parts.push(`${who} 在已有 Ticket 的线程上追问`)
-  else if (admission) parts.push(`${who}${CELLS[admission.value]}，准入表这一格允许`)
-  else if (addressed) parts.push(`${who} 在 ${where} 名单内，并${addressed.value === 'direct' ? '私聊' : '直接 @ '}了它`)
-  else parts.push(`${who} 发起`)
-  parts.push(page.mandate.strength === 'explicit' ? '所以是明确请求' : '所以是推断候选，经评估后接单')
-  if (fact('mode')?.value === 'auto') parts.push('当时是自动接单模式')
-  const rules = fact('rules')?.value.map(rule => `「${rule.name}」`).join('')
-  if (rules) parts.push(`命中规则 ${rules}`)
-  return `${parts.join('，')}。按策略 ${page.mandate.policyVersion.slice(0, 7)} 接单。`
+  if (fact('bot')) parts.push(t(`${who} is a bot on the ${where} bot list, which can only produce inferred candidates`, `${who} 是 ${where} bot 列表里的机器人，只能产生推断候选`))
+  else if (fact('followup')) parts.push(t(`${who} followed up in a thread that already has a Ticket`, `${who} 在已有 Ticket 的线程上追问`))
+  else if (admission) parts.push(t(`${who}${CELLS[admission.value][0]}, and that cell of the admission table allows it`, `${who}${CELLS[admission.value][1]}，准入表这一格允许`))
+  else if (addressed) parts.push(addressed.value === 'direct' ? t(`${who} is on the ${where} list and messaged it directly`, `${who} 在 ${where} 名单内，并私聊了它`)
+    : t(`${who} is on the ${where} list and @ it directly`, `${who} 在 ${where} 名单内，并直接 @ 了它`))
+  else parts.push(t(`${who} started it`, `${who} 发起`))
+  parts.push(page.mandate.strength === 'explicit' ? t('so it is an explicit request', '所以是明确请求') : t('so it is an inferred candidate, accepted after evaluation', '所以是推断候选，经评估后接单'))
+  if (fact('mode')?.value === 'auto') parts.push(t('auto mode was on at the time', '当时是自动接单模式'))
+  const rules = fact('rules')?.value.map(rule => t(`"${rule.name}"`, `「${rule.name}」`)).join(t(', ', ''))
+  if (rules) parts.push(t(`it matched ${rules}`, `命中规则 ${rules}`))
+  const version = page.mandate.policyVersion.slice(0, 7)
+  return t(`${parts.join(', ')}. Accepted under policy ${version}.`, `${parts.join('，')}。按策略 ${version} 接单。`)
 }
 
-const REPORT: Record<ReportState, { title: string; tone?: TimelineEntry['tone'] }> = {
-  progress: { title: '进展' },
-  waiting: { title: '等新消息', tone: 'muted' },
-  ready: { title: '交付就绪', tone: 'ok' },
-  blocked: { title: '受阻', tone: 'danger' },
-  failed: { title: '失败', tone: 'danger' },
-  dropped: { title: '无需处理', tone: 'muted' },
+const REPORT: Record<ReportState, { title: [string, string]; tone?: TimelineEntry['tone'] }> = {
+  progress: { title: ['Progress', '进展'] },
+  waiting: { title: ['Waiting for new messages', '等新消息'], tone: 'muted' },
+  ready: { title: ['Ready to deliver', '交付就绪'], tone: 'ok' },
+  blocked: { title: ['Blocked', '受阻'], tone: 'danger' },
+  failed: { title: ['Failed', '失败'], tone: 'danger' },
+  dropped: { title: ['Nothing to do', '无需处理'], tone: 'muted' },
 }
-export const OUTCOME: Record<string, string> = { completed: '已完成', merged: 'PR 已合并', closed: 'PR 已关闭', dropped: '无需处理', stopped: '被人停止' }
+const OUTCOMES: Record<string, [string, string]> = { completed: ['Completed', '已完成'], merged: ['PR merged', 'PR 已合并'], closed: ['PR closed', 'PR 已关闭'], dropped: ['Nothing to do', '无需处理'], stopped: ['Stopped by a person', '被人停止'] }
+export const outcomeName = (outcome: string) => OUTCOMES[outcome] ? t(...OUTCOMES[outcome]) : outcome
 
 function inputEntry(input: InputView): TimelineEntry {
   switch (input.kind) {
     case 'trigger': {
       const trigger = input.trigger
       // Automated notices (CI, a Source's own events) carry no sender id.
-      const who = trigger?.actor.id ? `${actorName(trigger.actor)} 的消息` : trigger ? '一条自动消息' : '一条消息'
+      const who = trigger?.actor.id ? t(`Message from ${actorName(trigger.actor)}`, `${actorName(trigger.actor)} 的消息`) : trigger ? t('An automated message', '一条自动消息') : t('A message', '一条消息')
       const handback = trigger?.handback
       return {
         at: input.at, kind: 'message',
-        title: handback ? `${who}被交回评估` : input.context ? `${who}（参考线程）` : who,
-        detail: [trigger?.preview, handback && `理由：${handback.reason}`, !input.delivered && '还没送到 worker'].filter(Boolean).join(' · '),
+        title: handback ? t(`${who}, handed back for evaluation`, `${who}被交回评估`) : input.context ? t(`${who} (context thread)`, `${who}（参考线程）`) : who,
+        detail: [trigger?.preview, handback && t(`Reason: ${handback.reason}`, `理由：${handback.reason}`), !input.delivered && t('Not delivered to the worker yet', '还没送到 worker')].filter(Boolean).join(' · '),
         ...!input.delivered ? { tone: 'warn' as const } : !(trigger?.human ?? input.human) ? { tone: 'muted' as const } : {},
         triggerId: input.triggerId, ...trigger ? { thread: trigger.thread } : {},
       }
     }
     case 'policy-changed': {
-      const rules = input.effect?.rules?.map(rule => `「${rule.name}」${rule.change === 'disabled' ? '已停用' : '改了'}`).join('，')
-      const parts = [rules, input.effect?.proactive === false && '不再接受主动工作', input.effect?.requesterAllowed === false && '发起人已不在名单']
-      return { at: input.at, kind: 'policy', title: `策略变更 ${input.from.slice(0, 7)} → ${input.to.slice(0, 7)}`, detail: parts.filter(Boolean).join('；') || '这次变更与它有关', tone: 'warn' }
+      const rules = input.effect?.rules?.map(rule => rule.change === 'disabled' ? t(`"${rule.name}" disabled`, `「${rule.name}」已停用`) : t(`"${rule.name}" changed`, `「${rule.name}」改了`)).join(t(', ', '，'))
+      const parts = [rules, input.effect?.proactive === false && t('proactive work is no longer accepted', '不再接受主动工作'), input.effect?.requesterAllowed === false && t('the requester is no longer on the list', '发起人已不在名单')]
+      return { at: input.at, kind: 'policy', title: t(`Policy changed ${input.from.slice(0, 7)} → ${input.to.slice(0, 7)}`, `策略变更 ${input.from.slice(0, 7)} → ${input.to.slice(0, 7)}`),
+        detail: list(parts.filter((part): part is string => !!part)) || t('This change concerns it', '这次变更与它有关'), tone: 'warn' }
     }
-    case 'reopen': return { at: input.at, kind: 'decision', title: '重新打开' }
-    case 'resumed': return { at: input.at, kind: 'message', title: '有人的消息让它恢复工作', triggerId: input.triggerId }
-    case 'note': return { at: input.at, kind: 'note', title: '主 Session 转来一条参考信息', detail: input.text }
-    case 'text': return { at: input.at, kind: 'note', title: '补充说明', detail: input.text }
+    case 'reopen': return { at: input.at, kind: 'decision', title: t('Reopened', '重新打开') }
+    case 'resumed': return { at: input.at, kind: 'message', title: t("Someone's message resumed it", '有人的消息让它恢复工作'), triggerId: input.triggerId }
+    case 'note': return { at: input.at, kind: 'note', title: t('The main Session passed on some context', '主 Session 转来一条参考信息'), detail: input.text }
+    case 'text': return { at: input.at, kind: 'note', title: t('Additional note', '补充说明'), detail: input.text }
   }
 }
 
@@ -120,25 +125,25 @@ export function timelineOf(page: TicketPageView): TimelineEntry[] {
   const entries: TimelineEntry[] = []
   const decision = page.decision
   if (decision) {
-    entries.push({ at: decision.at, kind: 'request', title: `${actorName(page.mandate.actor)} 发来请求`, detail: decision.preview,
+    entries.push({ at: decision.at, kind: 'request', title: t(`Request from ${actorName(page.mandate.actor)}`, `${actorName(page.mandate.actor)} 发来请求`), detail: decision.preview,
       thread: decision.thread, ...decision.triggerIds[0] ? { triggerId: decision.triggerIds[0] } : {} })
-    const matched = decision.rules.filter(rule => rule.matched).map(rule => `「${rule.name}」`).join('')
-    entries.push({ at: decision.at, kind: 'decision', title: decision.kind === 'reopen' ? '重新打开' : '接单',
-      detail: [reasonText(decision.reason), matched && `命中规则 ${matched}`, `范围：${page.mandate.scope}`].filter(Boolean).join(' · ') })
+    const matched = decision.rules.filter(rule => rule.matched).map(rule => t(`"${rule.name}"`, `「${rule.name}」`)).join(t(', ', ''))
+    entries.push({ at: decision.at, kind: 'decision', title: decision.kind === 'reopen' ? t('Reopened', '重新打开') : t('Accepted', '接单'),
+      detail: [reasonText(decision.reason), matched && t(`matched ${matched}`, `命中规则 ${matched}`), t(`Scope: ${page.mandate.scope}`, `范围：${page.mandate.scope}`)].filter(Boolean).join(' · ') })
   }
   page.assignments.forEach((assignment, index) => {
     const n = index + 1
-    entries.push({ at: assignment.createdAt, kind: 'assignment', title: `派工 ${n}`, tone: 'muted' })
-    if (assignment.startedAt) entries.push({ at: assignment.startedAt, kind: 'assignment', title: `派工 ${n}：worker 开始干活` })
+    entries.push({ at: assignment.createdAt, kind: 'assignment', title: t(`Dispatch ${n}`, `派工 ${n}`), tone: 'muted' })
+    if (assignment.startedAt) entries.push({ at: assignment.startedAt, kind: 'assignment', title: t(`Dispatch ${n}: the worker started`, `派工 ${n}：worker 开始干活`) })
     if (assignment.report) {
       const report = REPORT[assignment.report.state]
-      entries.push({ at: assignment.report.at, kind: 'report', title: report.title, detail: assignment.report.summary, ...report.tone ? { tone: report.tone } : {} })
+      entries.push({ at: assignment.report.at, kind: 'report', title: t(...report.title), detail: assignment.report.summary, ...report.tone ? { tone: report.tone } : {} })
     }
-    if (assignment.endedAt) entries.push({ at: assignment.endedAt, kind: 'assignment', title: `派工 ${n} 结束`,
+    if (assignment.endedAt) entries.push({ at: assignment.endedAt, kind: 'assignment', title: t(`Dispatch ${n} ended`, `派工 ${n} 结束`),
       ...assignment.endedReason ? { detail: reasonOf(assignment.endedReason) } : {}, tone: 'muted' })
   })
   for (const input of page.inputs) entries.push(inputEntry(input))
-  if (page.ended) entries.push({ at: page.ended.at, kind: 'end', title: `结束：${OUTCOME[page.ended.outcome] ?? page.ended.outcome}`,
+  if (page.ended) entries.push({ at: page.ended.at, kind: 'end', title: t(`Ended: ${outcomeName(page.ended.outcome)}`, `结束：${outcomeName(page.ended.outcome)}`),
     ...page.ended.reason ? { detail: page.ended.reason } : {}, tone: page.ended.outcome === 'stopped' ? 'warn' : 'ok' })
   // Stable sort keeps request before decision, and an assignment's events in order, when they share a timestamp.
   return entries.map((entry, index) => ({ entry, index })).sort((a, b) => a.entry.at.localeCompare(b.entry.at) || a.index - b.index).map(item => item.entry)
@@ -151,7 +156,7 @@ export function ticketView(page: TicketPageView, connection: Connection, said: S
     ...thread.url ? { url: thread.url } : {}, role: thread.context ? 'context' : thread.key === origin ? 'origin' : 'follows' }))
   threads.sort((a, b) => (a.role === 'origin' ? 0 : a.role === 'follows' ? 1 : 2) - (b.role === 'origin' ? 0 : b.role === 'follows' ? 1 : 2))
   const channel = page.channels[0]
-  const link = personLink(card.action, page.threads, page.summary, channel ? { url: channel.url, label: channel.label.zh } : undefined)
+  const link = personLink(card.action, page.threads, page.summary, channel ? { url: channel.url, label: local(channel.label) } : undefined)
   const latest = page.assignments.at(-1)
   return {
     connection,
@@ -171,7 +176,7 @@ export function ticketView(page: TicketPageView, connection: Connection, said: S
       ...page.directory ? { directory: page.directory } : {},
       assignments: page.assignments.length,
       running: latest?.state === 'running' && card.stage === 'working',
-      environment: page.environment.map(variable => ({ key: variable.key, value: variable.value, description: variable.description.zh })),
+      environment: page.environment.map(variable => ({ key: variable.key, value: variable.value, description: local(variable.description) })),
     },
     timeline: timelineOf(page),
     said,

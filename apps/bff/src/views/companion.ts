@@ -4,6 +4,7 @@
  */
 import type { CompanionState, Connection, SaidMessage, SpeechStats, TranscriptItem, TranscriptView } from '@dsh-superagent-ui/contract'
 import type { CompanionInfo, ModelRef, OutboxList, OutboxSummary, Transcript, TranscriptEntry } from '@dsh-superagent-ui/companion/api'
+import { t } from '../i18n.ts'
 
 export const companionState = (info: CompanionInfo | null): CompanionState => info ? { installed: true, version: info.version } : { installed: false }
 
@@ -23,8 +24,9 @@ function transcriptItem(entry: TranscriptEntry, directory?: string): TranscriptI
     case 'input': return { kind: 'input', seq: entry.seq, at, ...inputOf(entry.text) }
     case 'thinking': return { kind: 'thinking', seq: entry.seq, at, text: entry.text }
     case 'say': return { kind: 'say', seq: entry.seq, at, text: entry.text, interrupted: !!entry.interrupted }
-    case 'turn': return { kind: 'turn', seq: entry.seq, at, text: entry.end === undefined ? `第 ${entry.turn} 轮开始`
-      : entry.end === 'completed' ? `第 ${entry.turn} 轮结束` : entry.end === 'interrupted' ? `第 ${entry.turn} 轮被打断` : `第 ${entry.turn} 轮结束（${entry.end}）` }
+    case 'turn': return { kind: 'turn', seq: entry.seq, at, text: entry.end === undefined ? t(`Turn ${entry.turn} started`, `第 ${entry.turn} 轮开始`)
+      : entry.end === 'completed' ? t(`Turn ${entry.turn} ended`, `第 ${entry.turn} 轮结束`) : entry.end === 'interrupted' ? t(`Turn ${entry.turn} interrupted`, `第 ${entry.turn} 轮被打断`)
+      : t(`Turn ${entry.turn} ended (${entry.end})`, `第 ${entry.turn} 轮结束（${entry.end}）`) }
     case 'tool': {
       const exit = entry.job?.detail?.match(/exit code: (-?\d+)/)?.[1]
       // Paths inside the Ticket's directory read better relative to it.
@@ -46,10 +48,10 @@ function inputOf(text: string): { label: string; text: string } {
   try {
     const value = JSON.parse(text) as { title?: unknown; trigger?: { text?: unknown } }
     const said = typeof value.trigger?.text === 'string' ? value.trigger.text : undefined
-    if (typeof value.title === 'string') return { label: '派工', text: said ? `${value.title}\n${said}` : value.title }
-    if (said) return { label: '新消息', text: said }
+    if (typeof value.title === 'string') return { label: t('Dispatch', '派工'), text: said ? `${value.title}\n${said}` : value.title }
+    if (said) return { label: t('New message', '新消息'), text: said }
   } catch { /* Not JSON: a plain message. */ }
-  return { label: '收到', text }
+  return { label: t('Received', '收到'), text }
 }
 
 /**

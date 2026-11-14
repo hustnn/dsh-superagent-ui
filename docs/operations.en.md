@@ -4,8 +4,6 @@
 
 Starting, stopping, updating, upgrading and troubleshooting after the install. For installing, see [`docs/install/`](install). Paths here use the default locations: console `~/src/dsh-superagent-ui`, service `~/src/dsh-superagent`.
 
-The console UI is in Chinese. Where this page names a page or button, the Chinese label follows in parentheses.
-
 Upstream's full notes are in [`docs/006-deployment.md`](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/main/docs/006-deployment.md).
 
 ## dsh-superagent
@@ -65,17 +63,17 @@ The install guides save settings through the admin API so an agent can run them.
 
 | Setting | Where |
 | --- | --- |
-| GitHub repository, the agent's CLI | Sources (来源) → GitHub → Account |
-| The bot's CLI, groups to listen to | Sources (来源) → Feishu |
-| Who can give it work | Policy (策略) → the source → allow list |
-| prepare command, concurrency, model | Execution (执行) |
-| Commit attribution, auto-merge, PR requirements | Prompts (提示词) → Delivery requirements |
+| GitHub repository, the agent's CLI | Sources → GitHub → Account |
+| The bot's CLI, groups to listen to | Sources → Feishu |
+| Who can give it work | Policy → the source → allow list |
+| prepare command, concurrency, model | Execution |
+| Commit attribution, auto-merge, PR requirements | Prompts → Delivery requirements |
 
-Saving an account or repository checks it first. If the check fails, nothing is saved and the page shows why; if it passes, the service restarts and the page recovers after a dozen seconds or so. If you fixed a problem outside the console (for example signed the CLI in again), click "Check again" (重新检查) on the home or Sources page.
+Saving an account or repository checks it first. If the check fails, nothing is saved and the page shows why; if it passes, the service restarts and the page recovers after a dozen seconds or so. If you fixed a problem outside the console (for example signed the CLI in again), click "Check again" on the home or Sources page.
 
 ## Disk usage
 
-dsh-superagent never cleans up Ticket working directories; they stay after a Ticket ends. The Directories page (工作目录) in the console shows how much disk each one uses and lets you browse its files level by level. The page is read-only.
+dsh-superagent never cleans up Ticket working directories; they stay after a Ticket ends. The Directories page in the console shows how much disk each one uses and lets you browse its files level by level. The page is read-only.
 
 To free space, **delete large files inside a directory, not the whole directory**. A new message in a thread can resume an ended Ticket: if its directory is still there, the worker carries on in it; if the whole directory is gone, prepare runs again, `git worktree add -b` fails because the branch already exists, and the Ticket fails. Before deleting, also check the Ticket's conversation to make sure those files were delivered or really aren't needed.
 
@@ -116,7 +114,7 @@ The companion is a DSH plugin in this repository's `packages/companion`. It is i
 - **What it said:** in each Ticket's conversation, every message the agent sent, still has queued, or dropped.
 - **How much it talks:** the Insights page counts acknowledgements, replies and notifications per Ticket, and which Ticket talks the most.
 
-The console works without it; those places then say the companion plugin needs to be installed (装上 companion 插件后可以看到). Install steps are in [step 10 of core.en.md](install/core.en.md#10-install-the-console).
+The console works without it; those places then say to install the companion plugin. Install steps are in [step 10 of core.en.md](install/core.en.md#10-install-the-console).
 
 ### Updating the companion
 
@@ -142,18 +140,18 @@ curl -s -H 'x-superagent-ui-request: 1' http://127.0.0.1:3082/superagent-ui/api/
 | --- | --- |
 | `status` says it isn't running, but `http://127.0.0.1:3082` opens | The patch isn't applied; see [Patches](#patches) |
 | `git checkout` reports `reference is not a tree` | Upstream rewrote its history, and the commit `upstream/` points at is no longer on an upstream branch. Run `git -C ~/src/dsh-superagent-ui pull && git -C ~/src/dsh-superagent-ui submodule update` first; if that doesn't help, open an Issue |
-| Home page says setup isn't finished (配置没完成): the GitHub source has no repository to watch | See [step 9 of core.en.md](install/core.en.md#9-save-the-settings). It is required even when only using Feishu |
+| Home page says "Setup is not finished": the GitHub source names no repository | See [step 9 of core.en.md](install/core.en.md#9-save-the-settings). It is required even when only using Feishu |
 | Saving the GitHub source reports missing push access | The agent's account hasn't accepted the repository invitation, or its access isn't Write. Confirm with `~/.local/bin/gh-agent api repos/<owner>/<repo> --jq .permissions.push` |
 | No response to an @ mention on GitHub | Check in order: are you on the allow list; is the agent's account the same as yours (it ignores its own posts); was the @ added by editing an Issue body (it needs a new comment); does the Health page show GitHub as working |
-| After a restart the source's account check fails, with `exec: gh: not found` (or `lark-cli`) in the details | The CLI path in the wrapper is stale, often after switching Node versions with nvm. Regenerate the wrapper with the full path as in the install guide, then click "Check again" (重新检查) on the Sources page |
+| After a restart the source's account check fails, with `exec: gh: not found` (or `lark-cli`) in the details | The CLI path in the wrapper is stale, often after switching Node versions with nvm. Regenerate the wrapper with the full path as in the install guide, then click "Check again" on the Sources page |
 | `tmux new-session` fails, or tmux reports `unknown option -- e` | tmux is older than 3.2; upgrade it |
 | `The bot lark-cli allows user identities` | The bot's configuration doesn't have `strict-mode bot`, or the source points at your personal `lark-cli`; see [step 2 of feishu.en.md](install/feishu.en.md#2-configure-the-bots-cli) |
 | `app_scope_not_applied`, or error 230027 when reading group messages | Missing permissions; see [step 3 of feishu.en.md](install/feishu.en.md#3-operator-grant-permissions) |
 | No response to an @ mention in a Feishu group | Check in order: is the bot in the group; is the group in the source's list; are you on the Feishu allow list; does the Health page show Feishu as working |
-| Home page keeps saying the allow list is empty (名单是空的) | Add at least one person for Feishu or GitHub under Policy |
+| Home page keeps saying "Nobody can give it work yet" | Add at least one person for Feishu or GitHub under Policy |
 | The Feishu console says a permission is restricted by the organization's policy | Ask an organization admin to allow it, or use a narrower permission instead. Do not work around it with a personal identity |
 | A worker reports model errors, or evaluations never reach a conclusion | Check the key with `dsh headless "reply with exactly: ok"`. With another provider, check that `~/.dsh/.env` and `apiKeyEnv` in the profile match |
-| A Ticket says the companion plugin needs to be installed (装上 companion 插件后可以看到) | Check whether `curl -s -H 'x-superagent-ui-request: 1' http://127.0.0.1:3082/superagent-ui/api/info` responds. If not, reinstall as in [Updating the companion](#updating-the-companion) (`remove` reporting `Cannot remove` means it was never installed; just run `add`) |
+| A Ticket says "Install the companion plugin to see…" | Check whether `curl -s -H 'x-superagent-ui-request: 1' http://127.0.0.1:3082/superagent-ui/api/info` responds. If not, reinstall as in [Updating the companion](#updating-the-companion) (`remove` reporting `Cannot remove` means it was never installed; just run `add`) |
 | The companion reports a missing module in the logs | The plugin was installed before building. Run `pnpm build` first, then reinstall as in [Updating the companion](#updating-the-companion) |
 | The companion is still the old version after an update | When the path hasn't changed, `add` doesn't update the installed copy; `remove` then `add` as in [Updating the companion](#updating-the-companion) |
 | The console at `http://127.0.0.1:3090/` returns 404 | It hasn't been built yet; run `pnpm build` |

@@ -4,6 +4,8 @@
 
 安装好之后的启停、更新、升级和排错。安装步骤见 [`docs/install/`](install)。这里的路径都按默认位置写：控制台 `~/src/dsh-superagent-ui`，服务 `~/src/dsh-superagent`。
 
+控制台默认是英文，右上角的按钮可以切换成中文。下文提到页面和按钮时，按中文界面的叫法写。
+
 上游的完整说明在 [`docs/006-deployment.md`](https://github.com/deepseek-ai/dsh-superagent-prototype/blob/main/docs/006-deployment.md)。
 
 ## dsh-superagent

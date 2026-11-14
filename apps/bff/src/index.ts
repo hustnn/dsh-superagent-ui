@@ -40,9 +40,9 @@ const { app } = createApp({
 })
 
 const server = serve({ fetch: app.fetch, hostname: '127.0.0.1', port: config.port }, () => {
-  console.log(`\nSuperagent 控制台  ${consoleUrl(config, secrets.token)}`)
-  console.log(`dsh-superagent    ${upstreamUrl}${mock ? '（内置 mock，示例数据）' : ''}`)
-  console.log(`数据目录          ${config.dataDir}\n`)
+  console.log(`\nSuperagent console  ${consoleUrl(config, secrets.token)}`)
+  console.log(`dsh-superagent      ${upstreamUrl}${mock ? ' (built-in mock, sample data)' : ''}`)
+  console.log(`Data directory      ${config.dataDir}\n`)
 })
 
 // Upstream reports only the present, so the BFF samples it for the insights trend; samples are keyed by the hour.

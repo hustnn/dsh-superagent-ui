@@ -6,6 +6,12 @@
  * phone use the same API later with no change to dsh-superagent.
  */
 
+/**
+ * The console's languages. The console sends its choice in the `x-console-lang` header and the BFF words its views in it;
+ * English when the header is missing.
+ */
+export type Lang = 'en' | 'zh'
+
 /** How risky an operation is. Every BFF route declares one; remote access modes decide per tier (docs/architecture.md). */
 export type RiskTier = 'read' | 'low' | 'high' | 'local-only'
 

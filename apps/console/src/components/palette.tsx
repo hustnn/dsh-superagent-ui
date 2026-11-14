@@ -6,10 +6,17 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { BoardView, StatusSummary } from '@dsh-superagent-ui/contract'
 import { call } from '../api'
 import { href, navigate } from '../route'
-import { stageLabel } from '../text'
+import { t } from '../i18n'
+import { PAGE, stageLabel, type PageName } from '../text'
 import { useAction, useUi } from './ui'
 
 interface Item { label: string; hint: string; run: () => void | Promise<void> }
+
+/** What pausing and resuming do, shared with the Health page. */
+export const PAUSE_BODY = () => t('Sources keep recording messages, but nothing is evaluated, no new work is dispatched and no messages are sent. Running workers are not interrupted.',
+  '来源会继续记录消息，但不评估、不派新活、不发任何消息。正在运行的 worker 不会被打断。')
+export const RESUME_BODY = () => t('Messages recorded while paused get evaluated, waiting work is dispatched, and queued replies are sent.',
+  '恢复后会评估暂停期间记录的消息，派出等待的活，发出排队的回复。')
 
 export function Palette({ status, onClose }: { status?: StatusSummary; onClose: () => void }) {
   const [query, setQuery] = useState('')
@@ -23,33 +30,25 @@ export function Palette({ status, onClose }: { status?: StatusSummary; onClose: 
   const items = useMemo(() => {
     const q = query.trim()
     const go = (target: string) => () => { navigate(target); onClose() }
+    const page = (name: PageName, to: string): Item => ({ label: PAGE[name], hint: t('Page', '页面'), run: go(to) })
     const pages: Item[] = [
-      { label: '首页', hint: '页面', run: go(href.home()) },
-      { label: '看板', hint: '页面', run: go(href.board()) },
-      { label: '消息去向', hint: '页面', run: go(href.lookup()) },
-      { label: '校准', hint: '页面', run: go(href.calibration()) },
-      { label: '策略', hint: '页面', run: go(href.policy()) },
-      { label: '提示词', hint: '页面', run: go(href.prompts()) },
-      { label: '场景配方', hint: '页面', run: go(href.recipes()) },
-      { label: '洞察', hint: '页面', run: go(href.insights()) },
-      { label: '来源', hint: '页面', run: go(href.sources()) },
-      { label: '执行', hint: '页面', run: go(href.execution()) },
-      { label: '工作目录', hint: '页面', run: go(href.directories()) },
-      { label: '健康', hint: '页面', run: go(href.health()) },
+      page('home', href.home()), page('board', href.board()), page('lookup', href.lookup()), page('calibration', href.calibration()),
+      page('policy', href.policy()), page('prompts', href.prompts()), page('recipes', href.recipes()), page('insights', href.insights()),
+      page('sources', href.sources()), page('execution', href.execution()), page('directories', href.directories()), page('health', href.health()),
     ]
     const tickets: Item[] = board ? (['person', 'working', 'queued', 'idle', 'ended'] as const)
       .flatMap(stage => board.columns[stage]).map(card => ({ label: card.title, hint: stageLabel(card).label, run: go(href.ticket(card.id)) })) : []
-    const actions: Item[] = status ? [{ label: status.paused ? '恢复处理' : '暂停处理', hint: '操作', run: async () => {
+    const actions: Item[] = status ? [{ label: status.paused ? t('Resume processing', '恢复处理') : t('Pause processing', '暂停处理'), hint: t('Action', '操作'), run: async () => {
       onClose()
       const pausing = !status.paused
       const ok = await confirm(pausing
-        ? { title: '暂停处理？', action: '暂停', body: '来源会继续记录消息，但不评估、不派新活、不发任何消息。正在运行的 worker 不会被打断。' }
-        : { title: '恢复处理？', action: '恢复', body: '恢复后会评估暂停期间记录的消息，派出等待的活，发出排队的回复。' })
-      if (ok) await run('pause', () => call('POST /api/executor/pause', { body: { paused: pausing } }), pausing ? '已暂停处理' : '已恢复处理')
+        ? { title: t('Pause processing?', '暂停处理？'), action: t('Pause', '暂停'), body: PAUSE_BODY() }
+        : { title: t('Resume processing?', '恢复处理？'), action: t('Resume', '恢复'), body: RESUME_BODY() })
+      if (ok) await run('pause', () => call('POST /api/executor/pause', { body: { paused: pausing } }), pausing ? t('Processing paused', '已暂停处理') : t('Processing resumed', '已恢复处理'))
     } }] : []
     const lower = q.toLowerCase()
     const matched = [...pages, ...tickets, ...actions].filter(item => !lower || `${item.label} ${item.hint}`.toLowerCase().includes(lower))
-    return [...q ? [{ label: `查消息去向：${q}`, hint: '搜索', run: go(href.lookup(q)) }] : [], ...matched].slice(0, 12)
+    return [...q ? [{ label: t(`Trace message: ${q}`, `查消息去向：${q}`), hint: t('Search', '搜索'), run: go(href.lookup(q)) }] : [], ...matched].slice(0, 12)
   }, [board, confirm, onClose, query, run, status])
 
   const index = Math.min(selected, Math.max(0, items.length - 1))
@@ -61,14 +60,14 @@ export function Palette({ status, onClose }: { status?: StatusSummary; onClose: 
     else if (event.key === 'Escape') onClose()
   }
   return <div className="layer" onClick={onClose}>
-    <div className="pal" role="dialog" aria-modal="true" aria-label="命令面板" onClick={event => event.stopPropagation()}>
+    <div className="pal" role="dialog" aria-modal="true" aria-label={t('Command palette', '命令面板')} onClick={event => event.stopPropagation()}>
       <input autoFocus value={query} onChange={event => { setQuery(event.target.value); setSelected(0) }} onKeyDown={onKey}
-        placeholder="跳到页面或 Ticket，或粘贴消息链接查去向" aria-label="命令" />
+        placeholder={t('Jump to a page or Ticket, or paste a message link to trace it', '跳到页面或 Ticket，或粘贴消息链接查去向')} aria-label={t('Command', '命令')} />
       <div className="pal-list" ref={list} role="listbox">
         {items.map((item, i) => <div key={`${item.hint}:${item.label}`} role="option" aria-selected={i === index} className={`it${i === index ? ' on' : ''}`}
           onMouseEnter={() => setSelected(i)} onClick={() => void item.run()}>
           <span className="lbl">{item.label}</span><span className="k">{item.hint}</span></div>)}
-        {!items.length && <div className="it muted">没有匹配的结果</div>}
+        {!items.length && <div className="it muted">{t('No matches', '没有匹配的结果')}</div>}
       </div>
     </div>
   </div>

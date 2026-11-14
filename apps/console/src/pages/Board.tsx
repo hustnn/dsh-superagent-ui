@@ -6,14 +6,16 @@ import type { TicketStageKey } from '@dsh-superagent-ui/contract'
 import { TicketCard } from '../components/records'
 import { ConnectionBanner } from '../components/ui'
 import { useLive, useView } from '../live'
+import { t } from '../i18n'
 import { href } from '../route'
+import { PAGE } from '../text'
 
 const COLUMNS: { stage: TicketStageKey; label: string; hint: string }[] = [
-  { stage: 'queued', label: '排队中', hint: '等空闲的 worker' },
-  { stage: 'working', label: '执行中', hint: 'worker 正在干活' },
-  { stage: 'person', label: '需要你', hint: '等你回答、评审或处理失败' },
-  { stage: 'idle', label: '等新消息', hint: '这一轮做完了，有新消息会继续' },
-  { stage: 'ended', label: '最近结束', hint: '' },
+  { stage: 'queued', label: t('Queued', '排队中'), hint: t('Waiting for a free worker', '等空闲的 worker') },
+  { stage: 'working', label: t('Working', '执行中'), hint: t('A worker is on it', 'worker 正在干活') },
+  { stage: 'person', label: t('Needs you', '需要你'), hint: t('Waiting for your answer or review, or for you to handle a failure', '等你回答、评审或处理失败') },
+  { stage: 'idle', label: t('Waiting for new messages', '等新消息'), hint: t('This round is done; a new message picks it up again', '这一轮做完了，有新消息会继续') },
+  { stage: 'ended', label: t('Recently ended', '最近结束'), hint: '' },
 ]
 
 export function Board() {
@@ -21,8 +23,8 @@ export function Board() {
   const { connection } = useLive()
   const status = data?.status
   return <>
-    <div className="head"><div><h1>看板</h1>
-      <p>按“事”而不是按 Session 看它在并行推进什么。{status && <>worker {status.running}/{status.maxWorkers}{status.queued ? `，${status.queued} 个在排队` : ''}。</>}</p></div></div>
+    <div className="head"><div><h1>{PAGE.board}</h1>
+      <p>{t('What it is moving forward in parallel, by piece of work rather than by Session. ', '按“事”而不是按 Session 看它在并行推进什么。')}{status && <>worker {status.running}/{status.maxWorkers}{status.queued ? t(`, ${status.queued} queued`, `，${status.queued} 个在排队`) : ''}{t('.', '。')}</>}</p></div></div>
     <ConnectionBanner connection={data?.connection ?? connection} {...error ? { error } : {}} />
     {data ? <div className="board">{COLUMNS.map(column => {
       const cards = data.columns[column.stage]
@@ -30,9 +32,9 @@ export function Board() {
         <div className="col-h"><span>{column.label}</span><span className="mono muted">{column.stage === 'ended' && data.endedTotal > cards.length ? `${cards.length}/${data.endedTotal}` : cards.length}</span></div>
         {column.hint && <div className="col-hint">{column.hint}</div>}
         {cards.map(card => <TicketCard key={card.id} card={card} showStage={column.stage === 'person' || column.stage === 'ended'} />)}
-        {!cards.length && <div className="col-empty">没有</div>}
+        {!cards.length && <div className="col-empty">{t('None', '没有')}</div>}
       </section>
-    })}</div> : !error && <div className="card empty">正在读取…</div>}
-    {data && !data.columns.person.length && <p className="muted">需要你处理的事都在 <a href={href.home()}>首页</a>。</p>}
+    })}</div> : !error && <div className="card empty">{t('Loading…', '正在读取…')}</div>}
+    {data && !data.columns.person.length && <p className="muted">{t('Everything that needs you is on the ', '需要你处理的事都在 ')}<a href={href.home()}>{PAGE.home}</a>{t('.', '。')}</p>}
   </>
 }

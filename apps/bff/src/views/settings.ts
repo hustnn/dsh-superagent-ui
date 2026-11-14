@@ -6,11 +6,12 @@
 import type { Connection, ExecutionView, ExecutorSettings, FeishuSettings, GithubSettings, MainModelSwitch, ModelChoice, SourceAccountSave, SourceSave, SourceSettings, SourcesView } from '@dsh-superagent-ui/contract'
 import type { UpstreamClient } from '../upstream/client.ts'
 import type { ExecutorConfig, SettingsView, SourceStatus, StateView } from '../upstream/types.ts'
+import { local, t } from '../i18n.ts'
 import { DraftError } from './policy.ts'
 import { modelLabel } from './companion.ts'
 import { setupText } from './reasons.ts'
 
-const zh = (text: string | { zh: string }) => typeof text === 'string' ? text : text.zh
+const zh = local
 const bool = (value: unknown, fallback: boolean) => typeof value === 'boolean' ? value : fallback
 
 function github(config: Record<string, unknown>): GithubSettings {
@@ -32,8 +33,8 @@ export async function buildSources(upstream: Reads, connection: () => Connection
 function sourceSettings(source: SettingsView['sources'][number], status: SourceStatus[], state: StateView): SourceSettings {
   const live = status.find(item => item.id === source.id)
   const accounts = state.setup.accounts
-  const facts = source.kind === 'github' ? [{ label: '仓库', value: accounts?.repository ?? String(source.value.config.repository ?? '') }, ...accounts ? [{ label: 'agent 账号', value: accounts.agent }] : []]
-    : source.kind === 'feishu' && accounts?.feishu ? [{ label: '机器人', value: accounts.feishu.name }, { label: '品牌', value: accounts.feishu.brand === 'lark' ? 'Lark' : '飞书' }] : []
+  const facts = source.kind === 'github' ? [{ label: t('Repository', '仓库'), value: accounts?.repository ?? String(source.value.config.repository ?? '') }, ...accounts ? [{ label: t('Agent account', 'agent 账号'), value: accounts.agent }] : []]
+    : source.kind === 'feishu' && accounts?.feishu ? [{ label: t('Bot', '机器人'), value: accounts.feishu.name }, { label: t('Brand', '品牌'), value: accounts.feishu.brand === 'lark' ? 'Lark' : t('Feishu', '飞书') }] : []
   return {
     id: source.id, title: zh(source.title), enabled: source.value.enabled, revision: source.revision,
     ...live ? { state: live.state, ...live.problem ? { problem: setupText(live.problem) } : {} } : {},
@@ -53,18 +54,18 @@ const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
  */
 export function mergeAccount(kind: string, stored: Record<string, unknown>, save: SourceAccountSave): Record<string, unknown> {
   const cli = save.cli.trim()
-  if (!cli) throw new DraftError(kind === 'github' ? '填上 agent 的 GitHub CLI' : '填上机器人的 lark-cli')
-  if (cli.includes('/') && !cli.startsWith('/')) throw new DraftError('CLI 要写命令名或绝对路径，例如 /Users/me/.local/bin/gh-agent')
+  if (!cli) throw new DraftError(kind === 'github' ? t("Fill in the agent's GitHub CLI", '填上 agent 的 GitHub CLI') : t("Fill in the bot's lark-cli", '填上机器人的 lark-cli'))
+  if (cli.includes('/') && !cli.startsWith('/')) throw new DraftError(t('The CLI must be a command name or an absolute path, such as /Users/me/.local/bin/gh-agent', 'CLI 要写命令名或绝对路径，例如 /Users/me/.local/bin/gh-agent'))
   if (kind !== 'github') return { ...stored, cli }
   const repository = (save.repository ?? '').trim()
-  if (!REPOSITORY.test(repository)) throw new DraftError('仓库要写成 owner/name')
+  if (!REPOSITORY.test(repository)) throw new DraftError(t('Write the repository as owner/name', '仓库要写成 owner/name'))
   return { ...stored, repository, cli }
 }
 /** The stored config with the console's fields changed and everything else, accounts included, as it was. */
 export function mergeSource(kind: string, stored: Record<string, unknown>, save: SourceSave): Record<string, unknown> {
   if (kind === 'github' && save.github) {
     const { observeIssues, observePulls, observeComments, observeCi, pollSeconds } = save.github
-    if (pollSeconds !== undefined && (!Number.isInteger(pollSeconds) || pollSeconds < 60 || pollSeconds > 3600)) throw new DraftError('轮询间隔要在 60 到 3600 秒之间')
+    if (pollSeconds !== undefined && (!Number.isInteger(pollSeconds) || pollSeconds < 60 || pollSeconds > 3600)) throw new DraftError(t('The poll interval must be between 60 and 3600 seconds', '轮询间隔要在 60 到 3600 秒之间'))
     return { ...stored, ...observeIssues === undefined ? {} : { observeIssues }, ...observePulls === undefined ? {} : { observePulls },
       ...observeComments === undefined ? {} : { observeComments }, ...observeCi === undefined ? {} : { observeCi }, ...pollSeconds === undefined ? {} : { pollSeconds } }
   }
@@ -73,8 +74,8 @@ export function mergeSource(kind: string, stored: Record<string, unknown>, save:
     if (chats) {
       const ids = new Set<string>()
       for (const chat of chats) {
-        if (!CHAT.test(chat.chatId)) throw new DraftError(`群 id「${chat.chatId}」应该是 oc_ 开头`)
-        if (ids.has(chat.chatId)) throw new DraftError(`群「${chat.name || chat.chatId}」重复了`)
+        if (!CHAT.test(chat.chatId)) throw new DraftError(t(`Group id "${chat.chatId}" should start with oc_`, `群 id「${chat.chatId}」应该是 oc_ 开头`))
+        if (ids.has(chat.chatId)) throw new DraftError(t(`Group "${chat.name || chat.chatId}" is listed twice`, `群「${chat.name || chat.chatId}」重复了`))
         ids.add(chat.chatId)
       }
     }
@@ -122,9 +123,9 @@ export async function switchMainModel(upstream: Pick<UpstreamClient, 'companionI
 
 const COMMAND = /^[A-Za-z0-9._-]+$/
 export function checkExecutor(value: ExecutorSettings): ExecutorSettings {
-  if (!Number.isInteger(value.maxWorkers) || value.maxWorkers < 1) throw new DraftError('并发要是正整数')
-  if (value.directory && !value.directory.startsWith('/')) throw new DraftError('目录要写绝对路径，留空则用状态目录下的 work')
-  for (const command of value.blockedCommands) if (!COMMAND.test(command) || command === '.' || command === '..') throw new DraftError(`「${command}」不是命令名`)
-  if (value.model && (!value.model.provider || !value.model.model)) throw new DraftError('模型要同时选 provider 和模型，或者留空用默认')
+  if (!Number.isInteger(value.maxWorkers) || value.maxWorkers < 1) throw new DraftError(t('Concurrency must be a positive whole number', '并发要是正整数'))
+  if (value.directory && !value.directory.startsWith('/')) throw new DraftError(t('The directory must be an absolute path; leave it empty to use work under the state directory', '目录要写绝对路径，留空则用状态目录下的 work'))
+  for (const command of value.blockedCommands) if (!COMMAND.test(command) || command === '.' || command === '..') throw new DraftError(t(`"${command}" is not a command name`, `「${command}」不是命令名`))
+  if (value.model && (!value.model.provider || !value.model.model)) throw new DraftError(t('Pick both a provider and a model, or leave it empty for the default', '模型要同时选 provider 和模型，或者留空用默认'))
   return value
 }

@@ -1,6 +1,7 @@
 /** Projections both views share: the status line, problems in plain language, and Tickets that wait for a person. */
 import type { PersonItem, ProblemItem, StatusSummary } from '@dsh-superagent-ui/contract'
 import type { OverviewProblem, OverviewView, StateView, TicketRow } from '../upstream/types.ts'
+import { local, t } from '../i18n.ts'
 import { reasonText, setupText } from './reasons.ts'
 
 export function statusOf(state: StateView, overview: OverviewView): StatusSummary {
@@ -16,45 +17,48 @@ export function statusOf(state: StateView, overview: OverviewView): StatusSummar
   }
 }
 
-const PLACES: Record<string, string> = { deployment: '部署', github: 'GitHub', feishu: '飞书' }
-export const placeName = (place: string) => PLACES[place] ?? place
+const PLACES: Record<string, [string, string]> = { deployment: ['deployment', '部署'], github: ['GitHub', 'GitHub'], feishu: ['Feishu', '飞书'] }
+export const placeName = (place: string) => PLACES[place] ? t(...PLACES[place]) : place
 
 /** Kinds shown as the home page's next step instead of in its problem list. */
 export const NEXT_STEP_KINDS: ReadonlySet<string> = new Set(['setup', 'no-source', 'no-allowed'])
 
+const OPEN_THREAD = () => t('Open original thread', '打开原线程')
+
 export function problemItem(problem: OverviewProblem): ProblemItem {
   switch (problem.kind) {
     case 'setup':
-      return { id: `setup:${problem.place}`, kind: problem.kind, tone: 'danger', title: `配置没完成：${placeName(problem.place)}`, detail: setupText(problem), actions: [] }
+      return { id: `setup:${problem.place}`, kind: problem.kind, tone: 'danger', title: t(`Setup is not finished: ${placeName(problem.place)}`, `配置没完成：${placeName(problem.place)}`), detail: setupText(problem), actions: [] }
     case 'no-source':
-      return { id: 'no-source', kind: problem.kind, tone: 'danger', title: '没有在运行的来源', detail: 'GitHub 和飞书来源都没在运行，它收不到任何消息。', actions: [] }
+      return { id: 'no-source', kind: problem.kind, tone: 'danger', title: t('No source is running', '没有在运行的来源'), detail: t("Neither the GitHub nor the Feishu source is running, so it receives no messages.", 'GitHub 和飞书来源都没在运行，它收不到任何消息。'), actions: [] }
     case 'no-allowed':
-      return { id: 'no-allowed', kind: problem.kind, tone: 'danger', title: '名单是空的', detail: '没有人能让它干活。先把你自己的 GitHub 或飞书账号加进策略里的名单。', actions: [] }
+      return { id: 'no-allowed', kind: problem.kind, tone: 'danger', title: t('The allow list is empty', '名单是空的'), detail: t('Nobody can give it work. First add your own GitHub or Feishu account to the allow list under Policy.', '没有人能让它干活。先把你自己的 GitHub 或飞书账号加进策略里的名单。'), actions: [] }
     case 'source-error':
       return { id: `source-error:${problem.source.id}:${problem.source.health.name}`, kind: problem.kind, tone: 'danger',
-        title: `来源出错：${problem.source.title.zh}`, detail: problem.source.health.detail, actions: [] }
+        title: t(`Source error: ${local(problem.source.title)}`, `来源出错：${local(problem.source.title)}`), detail: problem.source.health.detail, actions: [] }
     case 'executor-paused':
-      return { id: 'executor-paused', kind: problem.kind, tone: 'warn', title: '处理已暂停',
-        detail: '来源继续记录消息；不评估、不派新活、不发消息。正在运行的 worker 不受影响。', actions: [{ kind: 'resume' }] }
+      return { id: 'executor-paused', kind: problem.kind, tone: 'warn', title: t('Processing is paused', '处理已暂停'),
+        detail: t('Sources keep recording messages; nothing is evaluated, dispatched or sent. Running workers are not affected.', '来源继续记录消息；不评估、不派新活、不发消息。正在运行的 worker 不受影响。'), actions: [{ kind: 'resume' }] }
     case 'runtime-error':
-      return { id: `runtime-error:${problem.name}`, kind: problem.kind, tone: 'danger', title: `运行出错：${problem.name}`, detail: problem.detail, actions: [] }
+      return { id: `runtime-error:${problem.name}`, kind: problem.kind, tone: 'danger', title: t(`Runtime error: ${problem.name}`, `运行出错：${problem.name}`), detail: problem.detail, actions: [] }
     case 'eval-overdue':
-      return { id: `eval-overdue:${problem.thread.key}`, kind: problem.kind, tone: 'warn', title: '评估超时',
-        detail: `「${problem.thread.title}」的评估超过了时限，会自动再试。`,
-        actions: problem.thread.url ? [{ kind: 'link', href: problem.thread.url, label: '打开原线程' }] : [] }
+      return { id: `eval-overdue:${problem.thread.key}`, kind: problem.kind, tone: 'warn', title: t('Evaluation timed out', '评估超时'),
+        detail: t(`The evaluation of "${problem.thread.title}" passed its time limit and will be retried automatically.`, `「${problem.thread.title}」的评估超过了时限，会自动再试。`),
+        actions: problem.thread.url ? [{ kind: 'link', href: problem.thread.url, label: OPEN_THREAD() }] : [] }
     case 'eval-unavailable':
-      return { id: `eval-unavailable:${problem.decisionId}`, kind: problem.kind, tone: 'warn', title: '评估没完成',
-        detail: `「${problem.thread.title}」：${reasonText(problem.reason)}。这条消息还没有结论。`,
+      return { id: `eval-unavailable:${problem.decisionId}`, kind: problem.kind, tone: 'warn', title: t('Evaluation unavailable', '评估没完成'),
+        detail: t(`"${problem.thread.title}": ${reasonText(problem.reason)}. This message has no conclusion yet.`, `「${problem.thread.title}」：${reasonText(problem.reason)}。这条消息还没有结论。`),
         actions: [{ kind: 'requeue', triggerId: problem.triggerId }, { kind: 'dismiss', decisionId: problem.decisionId },
-          ...problem.thread.url ? [{ kind: 'link' as const, href: problem.thread.url, label: '打开原线程' }] : []] }
+          ...problem.thread.url ? [{ kind: 'link' as const, href: problem.thread.url, label: OPEN_THREAD() }] : []] }
     case 'outgoing': {
       const { outgoing } = problem
-      return { id: `outgoing:${outgoing.id}`, kind: problem.kind, tone: 'danger', title: '回复发不出去',
-        detail: `「${outgoing.text}」已连续失败 ${outgoing.attempts} 次${outgoing.error ? `：${outgoing.error}` : ''}。同一对话里后面的回复在排队。`, actions: [] }
+      return { id: `outgoing:${outgoing.id}`, kind: problem.kind, tone: 'danger', title: t("A reply can't be sent", '回复发不出去'),
+        detail: t(`"${outgoing.text}" failed ${outgoing.attempts} times in a row${outgoing.error ? `: ${outgoing.error}` : ''}. Later replies in the same conversation are queued.`,
+          `「${outgoing.text}」已连续失败 ${outgoing.attempts} 次${outgoing.error ? `：${outgoing.error}` : ''}。同一对话里后面的回复在排队。`), actions: [] }
     }
     default: {
       const unknown = problem as { kind: string }
-      return { id: `unknown:${unknown.kind}`, kind: unknown.kind, tone: 'warn', title: unknown.kind, detail: '控制台还不认识这类问题。', actions: [] }
+      return { id: `unknown:${unknown.kind}`, kind: unknown.kind, tone: 'warn', title: unknown.kind, detail: t("The console doesn't know this kind of problem yet.", '控制台还不认识这类问题。'), actions: [] }
     }
   }
 }
@@ -77,7 +81,7 @@ export function personLink(action: string | undefined, threads: { source: string
 }
 export function personItem(row: TicketRow): PersonItem | undefined {
   if (row.stage !== 'person' || !row.action || !PERSON_ACTIONS.has(row.action)) return undefined
-  const link = personLink(row.action, row.threads, row.summary, row.reply ? { url: row.reply.url, label: row.reply.label.zh } : undefined)
+  const link = personLink(row.action, row.threads, row.summary, row.reply ? { url: row.reply.url, label: local(row.reply.label) } : undefined)
   return {
     id: row.id,
     title: row.title,
