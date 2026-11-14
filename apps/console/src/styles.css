@@ -362,7 +362,7 @@ select { height: 30px; border: 1px solid var(--line-strong); border-radius: 6px;
 .tk-tabs { margin-bottom: 14px }
 .tr-model { margin: 0 0 6px }
 .tr-model:empty { display: none }
-/* "查看 worker" scrolls here; keep the tabs clear of the sticky top bar. */
+/* "View worker" scrolls here; keep the tabs clear of the sticky top bar. */
 .tk-main { scroll-margin-top: 96px }
 .transcript ol, .said { list-style: none; margin: 0; padding: 0 }
 .transcript li, .said li { padding: 10px 0; border-top: 1px solid var(--line); min-width: 0 }

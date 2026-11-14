@@ -26,10 +26,10 @@ const MAIN_SESSION = 'orchestrator'
 
 /** What each mock worker did, in the shape DSH stores it: tool calls with their results, and what it said. */
 const STEPS: Record<string, { thinking: string; tools: [name: string, args: Record<string, string>, result: string, exit?: number][]; say: string }> = {
-  tk_142: { thinking: 'Reproduce the timeout first, then look at which request is slow.', say: '本地复现 20 次超时 3 次，需要你决定方向。',
+  tk_142: { thinking: 'Reproduce the timeout first, then look at which request is slow.', say: 'Reproduced locally: 3 timeouts in 20 runs. I need you to pick a direction.',
     tools: [['bash', { command: 'pnpm e2e --repeat 20', description: 'Run the e2e suite 20 times' }, '20 runs, 3 failed: upload.spec.ts timed out after 30000ms', 1],
       ['read', { file_path: 'src/api/upload.ts' }, 'export async function upload(file: File) { … }']] },
-  tk_318: { thinking: 'A recall event should invalidate the Trigger it created.', say: 'PR #318 已就绪。',
+  tk_318: { thinking: 'A recall event should invalidate the Trigger it created.', say: 'PR #318 is ready.',
     tools: [['edit', { file_path: 'src/sources/feishu.ts' }, 'Applied 1 edit'], ['bash', { command: 'pnpm test', description: 'Run the tests' }, '212 passed', 0],
       ['bash', { command: 'gh pr create --fill', description: 'Open the pull request' }, 'https://github.com/acme/harness-app/pull/318', 0]] },
   tk_151: { thinking: 'Wrap the upload in a retry with backoff, then run the integration tests.', say: '',
@@ -43,7 +43,7 @@ export function seedCompanion(tickets: TicketRow[]): MockCompanion {
   for (const row of tickets) if (row.sessionId) logs.set(row.sessionId, workerLog(row))
   // The main Session started before the worker model was changed, so it still calls the profile default.
   logs.set(MAIN_SESSION, [{ type: 'session', seq: 0, time: Date.now() - 86_400_000, data: {} },
-    { type: 'assistant/message', seq: 1, time: Date.now() - 3_600_000, data: { message: { role: 'assistant', content: [{ type: 'text', text: '已派工。' }], source: MAIN_MODEL } } }])
+    { type: 'assistant/message', seq: 1, time: Date.now() - 3_600_000, data: { message: { role: 'assistant', content: [{ type: 'text', text: 'Dispatched.' }], source: MAIN_MODEL } } }])
   const db = new DatabaseSync(':memory:')
   db.exec('CREATE TABLE outbox (id TEXT PRIMARY KEY, value TEXT NOT NULL)')
   const add = (id: string, row: TicketRow, kind: string, text: string, status = 'sent', extra: Record<string, unknown> = {}) => {
@@ -54,12 +54,12 @@ export function seedCompanion(tickets: TicketRow[]): MockCompanion {
   for (const row of tickets) {
     if (row.stage === 'working' && row.action === 'queued') continue
     // The agent acknowledges every request it takes, and reports once a Ticket needs a person or ends.
-    if (row.id === 'tk_161') add('rcpt_77', row, 'acknowledgement', '收到，我来升级 lark-cli 到 1.9。', 'pending')
-    else add(`ack_${row.id}`, row, 'acknowledgement', `收到，我来看看：${row.title}`)
+    if (row.id === 'tk_161') add('rcpt_77', row, 'acknowledgement', 'On it: upgrading lark-cli to 1.9.', 'pending')
+    else add(`ack_${row.id}`, row, 'acknowledgement', `On it, taking a look: ${row.title}`)
     if (row.stage === 'person' || row.stage === 'idle' || row.stage === 'ended') add(`rep_${row.id}`, row, 'reply', row.attention?.question ?? row.summary)
-    if (row.id === 'tk_142') add('rep_tk_142_b', row, 'reply', '补充：慢的是 /api/upload 的第一次请求，冷启动大约 8 秒。')
-    if (row.ended?.outcome === 'merged') add(`not_${row.id}`, row, 'notice', 'PR 已合并。')
-    if (row.id === 'tk_128') add('not_tk_128', row, 'notice', '这个问题我先放下了：三种浏览器各试 10 次都没复现。', 'dropped',
+    if (row.id === 'tk_142') add('rep_tk_142_b', row, 'reply', 'Update: the slow one is the first /api/upload request; a cold start takes about 8 seconds.')
+    if (row.ended?.outcome === 'merged') add(`not_${row.id}`, row, 'notice', 'PR merged.')
+    if (row.id === 'tk_128') add('not_tk_128', row, 'notice', "I'm setting this aside: 10 tries in each of three browsers didn't reproduce it.", 'dropped',
       { dropped: { at: row.updatedAt, reason: 'channelGone' } })
   }
   return { installed: true, logs, db, defaultModel: { provider: MAIN_MODEL.provider, model: MAIN_MODEL.model }, models: ['deepseek-v4', 'deepseek-v4-flash', 'deepseek-v4-pro'] }

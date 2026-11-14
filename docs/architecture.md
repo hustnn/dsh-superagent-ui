@@ -62,7 +62,7 @@ BFF 不是透传代理。它把上游记录整理成每个页面需要的视图�
 
 线程的 key 里有 `/` 和 `:`，所以放在查询参数里而不是路径里。
 
-一条消息的“去向”（`views/threads.ts` 的 `messagePath`）由上游记录的 disposition 和消费它的 Decision 推出：来源是否过滤、送到了哪些 Ticket、是否由 worker 直接决定、是否被交回、是否在排队或评估中，最后是接单、本会接单（观察模式）、忽略、停止或评估没完成。原因码的中文沿用上游面板自己的措辞（`views/reasons.ts`）。
+一条消息的“去向”（`views/threads.ts` 的 `messagePath`）由上游记录的 disposition 和消费它的 Decision 推出：来源是否过滤、送到了哪些 Ticket、是否由 worker 直接决定、是否被交回、是否在排队或评估中，最后是接单、本会接单（观察模式）、忽略、停止或评估没完成。原因码的措辞沿用上游面板自己的中英文（`views/reasons.ts`）。
 
 ## 策略的保存
 
@@ -84,6 +84,17 @@ BFF 不是透传代理。它把上游记录整理成每个页面需要的视图�
 ## 场景配方
 
 一个配方先在当前设置上算出计划（`apps/bff/src/views/recipes.ts`）：每一步只在真的会改东西时记一句话，所以计划为空就说明已经配好了。启用时按来源、策略、提示词的顺序分别保存，每块都带读取时的 revision；任何一块被别处改过都会 409，已经保存的块不回滚，页面提示重新载入后再启用（剩下的改动会照常算出来）。配方从不改主动接单模式。
+
+## 语言
+
+控制台有英文和中文，默认英文。选择存在浏览器的 `localStorage` 里，切换时整页重新载入，所以每个模块里的文案表只按一种语言生成一次。
+
+文案有两处：
+
+- **控制台：** `apps/console/src/i18n.ts` 的 `t(英文, 中文)`，写在用到它的地方。
+- **BFF：** 视图里的句子（问题、原因、经过、去向、配方的改动说明、出错信息）由 BFF 生成。控制台的每个请求都带 `x-console-lang` 请求头，`server.ts` 的中间件用 `AsyncLocalStorage` 让整个请求在这种语言下执行，视图里直接调 `apps/bff/src/i18n.ts` 的 `t()`，不用一层层传参。没有这个头时用英文。上游自带的中英文字段（`{ zh, en }`）用 `local()` 取。
+
+事件流（SSE）只说哪些视图变了，不带文字，所以和语言无关。内置的示例数据是英文的，不随语言切换：它代表的是用户和 agent 说的话，不是界面。
 
 ## 实时更新
 
@@ -114,7 +125,7 @@ BFF ──HTTP──▶ DSH Web（127.0.0.1:3082）
 - **注入的服务：** `orchestrator`（dsh-superagent 的 Runtime，Source 插件也是拿它注册来源）、`webServer`（注册路由）、`sessionPersistence`（以只读方式打开 Session 的事件日志，不影响正在写入的一方）、`sessionController` 和 `agentDefaultModel`（切换模型）。这些接口在 `packages/companion/src/host.ts` 里手工镜像，和 BFF 镜像管理 API 的做法一样。
 - **读的部分只读：** 会话记录走 DSH 的会话存储 API，存储格式迁移由 DSH 处理；消息直接查 dsh-superagent 的 `outbox` 表，只执行 SELECT。
 - **唯一的写：切换主 Session 的模型（0.3.0 起）。** 上游只在 Session 第一次调用模型前写入它的模型，主 Session 又一直沿用同一个，所以上游的设置到不了正在运行的主 Session。companion 调 DSH 的 `selectModel`（和在 DSH 界面里手动选模型是同一个接口），从下一次模型调用开始生效。`selectModel` 还会把选择存成 profile 的默认模型，companion 随后把原来的默认值存回去，所以只有主 Session 换了模型，留在“默认”上的 worker 不会跟着变。它写的是 DSH 的 Session 和 profile，不碰 dsh-superagent 自己的数据。BFF 在模型设置变化时调用它；设置和实际不一致时（比如设置是升级前保存的），执行页的按钮也调用它。
-- **投影在插件里：** DSH 的事件格式由插件 `src/transcript.ts` 转成阅读用的步骤（交给它的工作、思考、说的话、工具调用及结果、轮次）和用过的模型（每次模型调用都记着它的路由），DSH 自己注入的上下文（指令、运行时环境、skill 目录、时间）不算交给它的工作。BFF 只负责中文措辞，以及把 dsh-superagent 派工的 JSON 读成"派工 / 新消息"。
+- **投影在插件里：** DSH 的事件格式由插件 `src/transcript.ts` 转成阅读用的步骤（交给它的工作、思考、说的话、工具调用及结果、轮次）和用过的模型（每次模型调用都记着它的路由），DSH 自己注入的上下文（指令、运行时环境、skill 目录、时间）不算交给它的工作。BFF 只负责措辞，以及把 dsh-superagent 派工的 JSON 读成"派工 / 新消息"。
 - **同源规则：** 和管理 API 一样，只接受回环地址的 Host，并要求请求头 `x-superagent-ui-request: 1`。
 - **可选：** 没装时 DSH 对这些路径回空的 404，BFF 视为"未安装"，相应位置显示安装提示；companion 的错误不会把 dsh-superagent 标成连不上。
 - **消息没有时间：** 上游的发送记录不带时间，所以发言量按 Ticket 统计：以 Ticket 的时间划定统计区间（洞察页用近 30 天开过或结束的 Ticket）。

@@ -47,7 +47,7 @@ cd "$HOME/src/dsh-superagent-ui" && pnpm install
 cd "$HOME/src/dsh-superagent-ui" && pnpm dev:mock
 ```
 
-通过条件：输出里有一行 `Superagent 控制台  http://127.0.0.1:5173/?token=…`。
+通过条件：输出里有一行 `Superagent console  http://127.0.0.1:5173/?token=…`。
 
 如果报端口被占用，先确认本机是不是已经在运行控制台（BFF 默认用 3090 端口）。可以设置 `CONSOLE_PORT` 换一个 BFF 端口。
 
@@ -56,6 +56,7 @@ cd "$HOME/src/dsh-superagent-ui" && pnpm dev:mock
 把这行链接发给操作者，并说明：
 
 - 用浏览器打开这个链接。示例数据每 20 秒推进一步，可以看到页面实时更新。
+- 控制台默认是英文，点右上角的按钮可以切换成中文。
 - 这里的操作只影响示例数据。
 - 想用起来，把 README 里“接入 GitHub”那段提示词交给 agent。
 

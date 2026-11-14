@@ -5,6 +5,7 @@ import type { SourceStatus } from '../upstream/types.ts'
 import { companionState } from './companion.ts'
 import { setupText } from './reasons.ts'
 import { problemItem, statusOf } from './shared.ts'
+import { local } from '../i18n.ts'
 
 type Reads = Pick<UpstreamClient, 'state' | 'overview' | 'sources' | 'companionInfo'>
 
@@ -27,7 +28,7 @@ export async function buildHealth(upstream: Reads, connection: () => Connection,
 export function sourceItem(source: SourceStatus): SourceItem {
   return {
     id: source.id,
-    title: source.title.zh,
+    title: local(source.title),
     state: source.state,
     parts: source.health.map(part => ({ name: part.name, state: part.state, detail: part.detail })),
     ...source.problem ? { problem: setupText(source.problem) } : {},

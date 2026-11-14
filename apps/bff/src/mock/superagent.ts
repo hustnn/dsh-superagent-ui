@@ -56,7 +56,7 @@ export function stateView(world: MockWorld): StateView {
   return {
     setup: { machine: { stateDir: '/Users/operator/.dsh/state/superagent', promptMaxChars: 100000, admissionContextMaxPages: 10, admissionContextTimeoutMs: 15000 },
       problem: world.setupProblem, feishuProblem: null,
-      accounts: { repository: REPO, agent: 'acme-agent', feishu: { appId: 'cli_mock', brand: 'feishu', botId: 'ou_bot', name: 'Harness 助手' } } },
+      accounts: { repository: REPO, agent: 'acme-agent', feishu: { appId: 'cli_mock', brand: 'feishu', botId: 'ou_bot', name: 'Harness Bot' } } },
     load: { running, queued, maxWorkers: world.maxWorkers }, masterId: 'orchestrator', paused: world.paused, health: {},
   }
 }
@@ -141,7 +141,7 @@ function handle(world: MockWorld, method: string, path: string, query: URLSearch
     if (ticketAction[2] === 'retry') {
       if (!ticket.actions.retry) throw new Refusal(400, 'This ticket has nothing to retry')
       Object.assign(ticket, { stage: 'working', action: 'queued', note: undefined, actions: { retry: false, stop: true }, updatedAt: now,
-        summary: '重新派工，等空闲 worker' })
+        summary: 'Dispatched again; waiting for a free worker' })
       return { retried: true }
     }
     if (ticket.state === 'ended') throw new Refusal(400, 'The ticket already ended')
@@ -268,13 +268,13 @@ function script(world: MockWorld): (() => void)[] {
   const find = (id: string) => world.tickets.find(t => t.id === id)
   return [
     () => { const t = find('tk_151'); if (t?.state === 'open') Object.assign(t, { stage: 'person', action: 'review', updatedAt: now(),
-      summary: 'PR #327 已就绪：上传失败最多重试 3 次，带退避；集成测试通过。',
-      threads: [...t.threads, { key: 'github:pull/327', source: 'github', title: '上传接口加上重试', url: `https://github.com/${REPO}/pull/327`, facts: {} }],
+      summary: 'PR #327 is ready: failed uploads retry up to 3 times with backoff; integration tests pass.',
+      threads: [...t.threads, { key: 'github:pull/327', source: 'github', title: 'Add retries to the upload endpoint', url: `https://github.com/${REPO}/pull/327`, facts: {} }],
       reply: { source: 'github', url: `https://github.com/${REPO}/pull/327`, label: { zh: 'PR #327', en: 'PR #327' } } }) },
-    () => { const t = find('tk_155'); if (t?.state === 'open') Object.assign(t, { action: undefined, sessionId: 'worker-tk_155', updatedAt: now(), summary: '正在读现有部署文档' }) },
+    () => { const t = find('tk_155'); if (t?.state === 'open') Object.assign(t, { action: undefined, sessionId: 'worker-tk_155', updatedAt: now(), summary: 'Reading the existing deployment docs' }) },
     () => { const t = find('tk_163'); if (t?.state === 'open') Object.assign(t, { stage: 'person', action: 'answer', updatedAt: now(),
-      attention: { id: 'att_tk_163', question: '修复需要把路径统一转成 NFC。这会改变已有缓存目录的名字，要不要顺便写一个迁移？' },
-      reply: { source: 'github', url: `https://github.com/${REPO}/issues/163`, label: { zh: '中文路径打开失败', en: '中文路径打开失败' } } }) },
+      attention: { id: 'att_tk_163', question: 'The fix normalises paths to NFC, which renames existing cache directories. Should I write a migration as well?' },
+      reply: { source: 'github', url: `https://github.com/${REPO}/issues/163`, label: { zh: 'Paths with non-ASCII names fail to open', en: 'Paths with non-ASCII names fail to open' } } }) },
   ]
 }
 

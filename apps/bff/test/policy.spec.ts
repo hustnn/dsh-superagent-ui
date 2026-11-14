@@ -29,9 +29,9 @@ describe('policy view', () => {
     const issues = github.rows.find(row => row.id === 'issues')!
     expect(issues.cells.unlistedUnaddressed).toEqual({ available: true, value: 'inferred', options: ['inferred', 'ignore'] })
     expect(github.rows.find(row => row.id === 'pulls')!.cells.listedUnaddressed.available).toBe(false)
-    expect(policy.sources.find(source => source.id === 'feishu')!.sync).toEqual({ label: '立即同步', ready: true })
+    expect(policy.sources.find(source => source.id === 'feishu')!.sync).toEqual({ label: 'Sync now', ready: true })
     expect(policy.tickets.find(ticket => ticket.id === 'tk_142')).toMatchObject({ source: 'github', sender: 'alice', strength: 'explicit' })
-    expect(policy.history[0]?.changes).toEqual(['新增规则「依赖升级跟进」', 'GitHub 的 bot 列表加入 dependabot[bot]'])
+    expect(policy.history[0]?.changes).toEqual(['Added rule "Dependency upgrade follow-up"', 'Added dependabot[bot] to the GitHub bot list'])
     expect(policy.history.map(item => item.origin)).toEqual(['panel', 'sync', 'tool'])
   })
 })
@@ -59,13 +59,13 @@ describe('mergePolicy', () => {
 
 describe('policy history', () => {
   it('counts added chats, which upstream names by their listen mode, and names the first save', () => {
-    expect(changeText({ code: 'sourceRowsAdded', source: 'feishu', field: 'chats', items: ['all'] })).toBe('飞书 的监听的群加入 1 个')
-    expect(changeText({ code: 'sourceRowsAdded', source: 'feishu', field: 'allowed', items: ['hustnn'] })).toBe('飞书 的名单加入 hustnn')
+    expect(changeText({ code: 'sourceRowsAdded', source: 'feishu', field: 'chats', items: ['all'] })).toBe('Added 1 to the Feishu listened groups')
+    expect(changeText({ code: 'sourceRowsAdded', source: 'feishu', field: 'allowed', items: ['hustnn'] })).toBe('Added hustnn to the Feishu allow list')
     const items = historyItems({ items: [
       { revision: 2, savedAt: '', source: 'panel', policyChanged: false, changes: null },
       { revision: 1, savedAt: '', source: 'panel', policyChanged: false, changes: null },
     ] } as never)
-    expect(items.map(item => item.changes)).toEqual([['上一个版本没有记录，没法逐项比较'], ['第一次保存设置']])
+    expect(items.map(item => item.changes)).toEqual([["The previous version wasn't recorded, so it can't be compared item by item"], ['Settings saved for the first time']])
   })
 })
 
@@ -81,7 +81,7 @@ describe('saving the policy', () => {
     expect(saved.revisions).toEqual({ policy: before.revisions.policy + 1, eval: before.revisions.eval })
     expect(h.audit.recent()[0]).toMatchObject({ action: 'policy.save', tier: 'high', target: 'policy', outcome: 'ok' })
     const after = await json<PolicyView>(await h.call('/api/policy'))
-    expect(after.history[0]?.changes).toEqual(['停用规则「新 issue 分诊」', 'GitHub 的名单加入 bob'])
+    expect(after.history[0]?.changes).toEqual(['Disabled rule "New issue triage"', 'Added bob to the GitHub allow list'])
   })
   it('switches the accept mode through the eval block', async () => {
     h = await harness()

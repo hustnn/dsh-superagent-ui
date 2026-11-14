@@ -13,13 +13,13 @@ describe('prompts', () => {
     h = await harness()
     const view = await json<PromptsView>(await h.call('/api/prompts'))
     expect(view.revision).toBe(12)
-    expect(view.parts.filter(part => part.kind === 'team').map(part => part.title)).toEqual(['沟通规范', 'Ticket 范围', '交付要求'])
+    expect(view.parts.filter(part => part.kind === 'team').map(part => part.title)).toEqual(['Communication', 'Ticket scope', 'Delivery requirements'])
     expect(view.parts.find(part => part.key === 'skill/identities')?.kind).toBe('skill')
     const worker = view.parts.find(part => part.key === 'runtime/worker')!
     expect(worker.defaultChanged?.previous).toMatch(/checks have started/)
     expect(worker.builtIn?.text).toMatch(/required checks passed/)
     expect(view.parts.find(part => part.key === 'runtime/environment')?.builtIn?.placeholders).toEqual(['{variables}'])
-    expect(view.history[0]).toMatchObject({ revision: 12, changed: ['沟通规范'] })
+    expect(view.history[0]).toMatchObject({ revision: 12, changed: ['Communication'] })
     expect(view.sessions.find(session => session.sessionId === 'worker-tk_133')?.revision).toBe(11)
   })
   it('saves on top of the revision read, audited as high-risk, and refuses a stale one', async () => {
@@ -36,8 +36,8 @@ describe('prompts', () => {
     h = await harness()
     const view = await json<PromptsView>(await h.call('/api/prompts'))
     const preview = await json<PromptPreview>(await h.post('/api/prompts/preview', view.config))
-    expect(preview.roles.worker.find(part => part.name === 'runtime/worker')).toMatchObject({ title: 'worker 的角色', overridden: true })
-    expect(preview.roles.worker.some(part => part.title === '沟通规范' && part.kind === 'team')).toBe(true)
+    expect(preview.roles.worker.find(part => part.name === 'runtime/worker')).toMatchObject({ title: "The worker's role", overridden: true })
+    expect(preview.roles.worker.some(part => part.title === 'Communication' && part.kind === 'team')).toBe(true)
     expect(preview.roles.orchestrator.some(part => part.name === 'runtime/admission')).toBe(true)
     expect(preview.roles.worker.some(part => part.name === 'runtime/admission')).toBe(false)
   })
@@ -49,7 +49,7 @@ describe('sources', () => {
     const view = await json<SourcesView>(await h.call('/api/sources'))
     const github = view.sources.find(source => source.id === 'github')!
     expect(github.github).toMatchObject({ repository: 'acme/harness-app', observeIssues: true, observeComments: false })
-    expect(github.facts).toContainEqual({ label: 'agent 账号', value: 'acme-agent' })
+    expect(github.facts).toContainEqual({ label: 'Agent account', value: 'acme-agent' })
     await json(await h.post('/api/sources/github', { enabled: true, github: { observeComments: true }, revision: github.revision }, 'PUT'))
     expect(h.mock.world.settings.github).toMatchObject({ observeComments: true, cli: '/Users/operator/.local/bin/gh-agent' })
     expect(h.audit.recent()[0]).toMatchObject({ action: 'source.save', tier: 'high', target: 'github' })
@@ -94,14 +94,14 @@ describe('what upstream offers beyond the forms', () => {
     expect((await h.post('/api/sources/feishu/account', { cli: 'bin/lark-bot', revision: feishu.revision }, 'PUT')).status).toBe(400)
     const failed = await h.post('/api/sources/feishu/account', { cli: '/opt/missing/lark-bot', revision: feishu.revision }, 'PUT')
     expect(failed.status).toBe(400)
-    expect((await failed.json() as { error: { message: string } }).error.message).toBe('账号检查没通过，什么都没保存：机器人的 lark-cli 不可用。\n/opt/missing/lark-bot is not an executable file')
+    expect((await failed.json() as { error: { message: string } }).error.message).toBe("The account check failed, so nothing was saved: The bot's lark-cli does not work.\n/opt/missing/lark-bot is not an executable file")
     expect(h.mock.world.settings.feishu.cli).toBe('/Users/operator/.local/bin/lark-bot')
   })
   it('runs setup’s check again only while setup has something to fix, and words the problem in Chinese', async () => {
     const world = seedWorld()
     world.setupProblem = { place: 'github', code: 'agentCliSignedOut', values: {}, detail: 'The agent GitHub CLI cannot read its account.' }
     h = await harness({ world })
-    expect((await json<HomeView>(await h.call('/api/home'))).next).toEqual({ kind: 'setup', place: 'github', detail: '智能体的 GitHub CLI 读不到它的账号。' })
+    expect((await json<HomeView>(await h.call('/api/home'))).next).toEqual({ kind: 'setup', place: 'github', detail: "The agent's GitHub CLI cannot read its account." })
     expect((await json<SourcesView>(await h.call('/api/sources'))).setupPending).toBe(true)
     expect(await json(await h.post('/api/setup/check'))).toEqual({ restarting: true })
     expect(h.audit.recent()[0]).toMatchObject({ action: 'setup.check', tier: 'high', outcome: 'ok' })
@@ -138,7 +138,7 @@ describe('insights', () => {
     expect(view.waiting.count).toBe(3)
     expect(view.waiting.longestMs).toBeGreaterThan(view.waiting.medianMs!)
     expect(view.outcomes.all).toEqual({ merged: 1, dropped: 1 })
-    expect(view.demand.map(item => [item.title, item.count])).toEqual([['harness-users 群', 3], ['README 的安装步骤看不懂', 1]])
+    expect(view.demand.map(item => [item.title, item.count])).toEqual([['harness-users group', 3], ["Can't follow the README install steps", 1]])
     expect(view.capacity).toMatchObject({ maxWorkers: 3, peakQueued: 3 })
     expect(view.calibration.mode).toBe('observe')
   })
@@ -157,11 +157,11 @@ describe('recipes', () => {
     h = await harness()
     const before = await json<{ changes: string[] }>(await h.post('/api/recipes/silent-fix/preview', { chat: 'oc_harness_dev' }))
     expect(before.changes).toEqual([
-      '飞书群「harness-dev」改为接收全部消息',
-      '「harness-dev」里名单内的人没 @ 它的消息作为推断候选',
-      '「harness-dev」里名单外的人没 @ 它的消息作为推断候选',
-      '新增规则「静默复现修复」并启用',
-      '沟通规范加一句：命中“静默复现修复”时不发确认，只在有结果时回复一次',
+      'Feishu group "harness-dev" receives all messages',
+      'Messages in "harness-dev" from people on the list that don\'t @ it become inferred candidates',
+      'Messages in "harness-dev" from people not on the list that don\'t @ it become inferred candidates',
+      'Add and enable rule "Silent reproduce-and-fix"',
+      'Add a line to Communication: under "Silent reproduce-and-fix", send no acknowledgement and reply once there is a result',
     ])
     await json(await h.post('/api/recipes/silent-fix/apply', { chat: 'oc_harness_dev' }))
     expect(h.mock.world.settings.feishu.chats.find(chat => chat.chatId === 'oc_harness_dev')?.listen).toBe('all')

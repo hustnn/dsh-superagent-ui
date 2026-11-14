@@ -42,7 +42,7 @@ export interface MockPrompts {
 
 export function seedPrompts(now: number): MockPrompts {
   const day = (days: number) => new Date(now - days * 86_400_000).toISOString()
-  const v10: PromptConfig = { ...DEFAULTS, skills: { identities: '---\nname: identities\ndescription: Which Feishu user is which GitHub account.\n---\n- 周舟 (ou_zhouzhou) is GitHub @zhouzhou\n- 李雷 (ou_lilei) is GitHub @lilei' } }
+  const v10: PromptConfig = { ...DEFAULTS, skills: { identities: '---\nname: identities\ndescription: Which Feishu user is which GitHub account.\n---\n- Dana (ou_dana) is GitHub @dana\n- Leo (ou_leo) is GitHub @leo' } }
   const v11: PromptConfig = { ...v10, delivery: `${DEFAULTS.delivery}\nA UI change is not ready without a real before-and-after screenshot.\nNever enable auto-merge as acme-agent.`,
     overrides: { 'runtime/worker': { text: '## Role: worker\nReport ready only after the change is pushed and checks have started.\nMark a draft pull request as unfinished in its description.', base: base(OLD_WORKER) } } }
   const v12: PromptConfig = { ...v11, communication: `${DEFAULTS.communication}\nChat replies are one sentence by default and never longer than 100 words.\nacme-review-bot is an automated reviewer; answer each of its threads at most three rounds per pull request.` }

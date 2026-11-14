@@ -12,6 +12,7 @@ import type { UpstreamClient } from '../upstream/client.ts'
 import type { TicketRow } from '../upstream/types.ts'
 import { DraftError } from './policy.ts'
 import { ticketCard } from './tickets.ts'
+import { t } from '../i18n.ts'
 
 /** An open Ticket's directory keeps changing; an ended one's changes only when a message resumes it, which updates the Ticket. */
 const OPEN_MAX_AGE_MS = 5 * 60_000
@@ -89,12 +90,12 @@ async function locate(upstream: Upstream, key: string): Promise<{ path: string; 
 
 /** Resolves a path relative to a directory, following links, and refuses anything that ends up outside it. */
 async function inside(directory: string, path: string): Promise<{ real: string; relative: string }> {
-  if (isAbsolute(path) || path.split('/').includes('..')) throw new DraftError('路径不对')
+  if (isAbsolute(path) || path.split('/').includes('..')) throw new DraftError(t('That path is not allowed', '路径不对'))
   const base = await realpath(directory).catch(() => null)
-  if (!base) throw new DraftError('这个目录已经不在了')
+  if (!base) throw new DraftError(t('This directory is gone', '这个目录已经不在了'))
   const real = await realpath(join(base, path)).catch(() => null)
-  if (!real) throw new DraftError('这个路径已经不在了')
-  if (real !== base && !real.startsWith(base + sep)) throw new DraftError('路径不对')
+  if (!real) throw new DraftError(t('This path is gone', '这个路径已经不在了'))
+  if (real !== base && !real.startsWith(base + sep)) throw new DraftError(t('That path is not allowed', '路径不对'))
   return { real, relative: relative(base, real).split(sep).join('/') }
 }
 
@@ -103,9 +104,9 @@ const KIND = (entry: { isDirectory(): boolean; isFile(): boolean; isSymbolicLink
 
 export async function directoryFiles(upstream: Upstream, disk: DiskUsage, key: string, path: string, connection: () => Connection): Promise<DirectoryFilesView> {
   const found = await locate(upstream, key)
-  if (!found) throw new DraftError('没有这个目录')
+  if (!found) throw new DraftError(t('No such directory', '没有这个目录'))
   const { real, relative: at } = await inside(found.path, path)
-  if (!(await lstat(real)).isDirectory()) throw new DraftError('这不是文件夹')
+  if (!(await lstat(real)).isDirectory()) throw new DraftError(t('This is not a folder', '这不是文件夹'))
   if (!disk.get(found.path)) disk.request(found.path)
   const known = disk.get(found.path)
   const depth = at ? at.split('/').length : 0
@@ -140,8 +141,8 @@ export function revealInFinder(path: string): Promise<void> {
 }
 
 export async function revealEntry(upstream: Upstream, key: string, path: string, reveal: (path: string) => Promise<void>): Promise<void> {
-  if (!canReveal) throw new DraftError('只有 macOS 上能在访达中显示')
+  if (!canReveal) throw new DraftError(t('Revealing in Finder only works on macOS', '只有 macOS 上能在访达中显示'))
   const found = await locate(upstream, key)
-  if (!found) throw new DraftError('没有这个目录')
+  if (!found) throw new DraftError(t('No such directory', '没有这个目录'))
   await reveal((await inside(found.path, path)).real)
 }

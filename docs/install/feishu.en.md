@@ -198,7 +198,7 @@ Passes if the bot replies in the message's thread. In our tests it replied withi
 
 ## Done when
 
-- [ ] `status` exits 0, `feishu` is `null`, and the Health page (健康) shows Feishu as working
+- [ ] `status` exits 0, `feishu` is `null`, and the Health page shows Feishu as working
 - [ ] The first Feishu message created a Ticket, and the bot replied in the thread
 
 ## Hand over to the operator
@@ -206,6 +206,6 @@ Passes if the bot replies in the message's thread. In our tests it replied withi
 Tell the operator in one short message:
 
 - People on the allow list who @ the bot in `<chat-name>` or message it directly are making an explicit request.
-- To add groups or people, or to have a group listen to all messages, use the Sources (来源) and Policy (策略) pages in the console.
+- To add groups or people, or to have a group listen to all messages, use the Sources and Policy pages in the console.
 - When one thread has several Tickets, each new message goes to all of them, and each worker decides whether it is theirs. Start a new thread for a separate task.
 - When a worker needs other Feishu abilities (for example creating docs), request the permissions listed in `missing_scopes` in its error, using the link format from step 3.

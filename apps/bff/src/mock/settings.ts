@@ -25,9 +25,9 @@ export interface MockSettings {
 }
 
 const RULES = [
-  { id: 'silent', name: '静默复现修复', enabled: true, instruction: '有人在群里报告可复现的缺陷时，先在后台复现；确认问题并找到简单修复才回复，否则不发言。' },
-  { id: 'triage', name: '新 issue 分诊', enabled: true, instruction: '新 issue 缺少复现信息时，补充分诊标签，只问一个具体问题。' },
-  { id: 'deps', name: '依赖升级跟进', enabled: true, instruction: '依赖机器人的 PR 检查失败时，修复失败并推送到同一个分支。' },
+  { id: 'silent', name: 'Silent reproduce-and-fix', enabled: true, instruction: 'When someone in a group reports a reproducible defect, reproduce it in the background first; reply only after confirming it and finding a simple fix, otherwise stay quiet.' },
+  { id: 'triage', name: 'New issue triage', enabled: true, instruction: 'When a new issue lacks reproduction details, add the triage label and ask exactly one concrete question.' },
+  { id: 'deps', name: 'Dependency upgrade follow-up', enabled: true, instruction: "When a dependency bot's PR fails its checks, fix the failure and push to the same branch." },
 ]
 
 export function seedSettings(now: number): MockSettings {
@@ -37,7 +37,7 @@ export function seedSettings(now: number): MockSettings {
       rules: RULES.map(rule => ({ ...rule })),
       sources: {
         github: { allowed: [{ id: 'alice' }, { id: 'carol' }], admission: { issues: { unlistedUnaddressed: 'inferred' } }, bots: [{ id: 'dependabot[bot]' }] },
-        feishu: { allowed: [{ id: 'ou_zhouzhou', name: '周舟' }, { id: 'ou_lilei', name: '李雷' }, { id: 'ou_linxia', name: '林夏' }],
+        feishu: { allowed: [{ id: 'ou_dana', name: 'Dana' }, { id: 'ou_leo', name: 'Leo' }, { id: 'ou_lin', name: 'Lin' }],
           admission: { oc_harness_users: { unlistedUnaddressed: 'inferred' } }, bots: [], syncChat: 'oc_harness_dev' },
       },
     },
@@ -52,9 +52,9 @@ export function seedSettings(now: number): MockSettings {
     current: 5,
     history: [
       { revision: 5, savedAt: day(1), source: 'panel', block: 'policy', policyVersion: MANDATE_VERSION, policyChanged: true, notified: [],
-        changes: [{ code: 'ruleAdded', name: '依赖升级跟进' }, { code: 'sourceRowsAdded', source: 'github', field: 'bots', items: ['dependabot[bot]'], part: true }] },
+        changes: [{ code: 'ruleAdded', name: 'Dependency upgrade follow-up' }, { code: 'sourceRowsAdded', source: 'github', field: 'bots', items: ['dependabot[bot]'], part: true }] },
       { revision: 4, savedAt: day(3), source: 'sync', block: 'policy', policyVersion: 'p51d0aa9c3e7', policyChanged: true, notified: [],
-        changes: [{ code: 'sourceRowsAdded', source: 'feishu', field: 'allowed', items: ['林夏'], part: true }] },
+        changes: [{ code: 'sourceRowsAdded', source: 'feishu', field: 'allowed', items: ['Lin'], part: true }] },
       { revision: 3, savedAt: day(5), source: 'tool', block: 'eval', policyVersion: 'p0be44f2d918', policyChanged: true, notified: [],
         changes: [{ code: 'mode', from: 'off', to: 'observe' }] },
     ],
@@ -65,20 +65,22 @@ export function seedSettings(now: number): MockSettings {
 export const versionOf = (settings: MockSettings) =>
   'p' + createHash('sha256').update(JSON.stringify({ rules: settings.policy.rules, mode: settings.eval.mode, sources: settings.policy.sources })).digest('hex').slice(0, 11)
 
-const both = (text: string) => ({ zh: text, en: text })
+/** Upstream's bilingual text: `{ zh, en }`. */
+const both = (en: string, zh = en) => ({ zh, en })
+const ALL = both('All', '全部'), MENTIONS = both('@ only', '仅 @'), RECEIVED = both('Received', '接收'), IGNORED = both('Ignored', '不接收')
 function githubRows(config: MockSettings['github']): AdmissionRowView[] {
-  const row = (id: string, label: string, observed: boolean) => ({ id, label: both(label), note: both(observed ? '全部' : '仅 @'),
+  const row = (id: string, label: [string, string], observed: boolean) => ({ id, label: both(...label), note: observed ? ALL : MENTIONS,
     cells: { listedUnaddressed: observed, unlistedAddressed: true, unlistedUnaddressed: observed } })
-  return [row('issues', '新 Issue', config.observeIssues), row('pulls', '新 PR', config.observePulls), row('comments', '评论', config.observeComments),
-    { id: 'ci', label: both('默认分支的 CI'), note: both(config.observeCi ? '接收' : '不接收'), cells: { listedUnaddressed: false, unlistedAddressed: false, unlistedUnaddressed: config.observeCi } }]
+  return [row('issues', ['New Issues', '新 Issue'], config.observeIssues), row('pulls', ['New PRs', '新 PR'], config.observePulls), row('comments', ['Comments', '评论'], config.observeComments),
+    { id: 'ci', label: both('CI on the default branch', '默认分支的 CI'), note: config.observeCi ? RECEIVED : IGNORED, cells: { listedUnaddressed: false, unlistedAddressed: false, unlistedUnaddressed: config.observeCi } }]
 }
 function feishuRows(config: MockSettings['feishu']): AdmissionRowView[] {
   return [
-    ...config.chats.map(chat => ({ id: chat.chatId, label: chat.name, note: both(chat.listen === 'all' ? '全部消息' : '仅 @'),
+    ...config.chats.map(chat => ({ id: chat.chatId, label: chat.name, note: chat.listen === 'all' ? both('All messages', '全部消息') : MENTIONS,
       cells: { listedUnaddressed: chat.listen === 'all', unlistedAddressed: true, unlistedUnaddressed: chat.listen === 'all' } })),
-    { id: 'other', label: both('其他群'), note: both(config.otherChats === 'mentions' ? '仅 @' : '不接收'),
+    { id: 'other', label: both('Other groups', '其他群'), note: config.otherChats === 'mentions' ? MENTIONS : IGNORED,
       cells: { listedUnaddressed: false, unlistedAddressed: config.otherChats === 'mentions', unlistedUnaddressed: false } },
-    { id: 'direct', label: both('私聊'), note: both(config.directMessages ? '接收' : '不接收'),
+    { id: 'direct', label: both('Direct messages', '私聊'), note: config.directMessages ? RECEIVED : IGNORED,
       cells: { listedUnaddressed: false, unlistedAddressed: config.directMessages, unlistedUnaddressed: false } },
   ]
 }
@@ -94,20 +96,20 @@ export function settingsView(settings: MockSettings, version: string): SettingsV
     },
     sources: [
       { id: 'github', kind: 'github', title: both('GitHub'), installed: true, value: { enabled: true, config: settings.github }, revision: settings.revisions['source:github']!, fields: [], labels: {},
-        policy: { fields: [{ key: 'allowed', ...rows, label: both('名单') }, { key: 'bots', ...rows, label: both('bot 列表') }],
-          explicit: both('名单里的账号在 Issue 或评论里 @ 智能体的账号。'), rows: githubRows(settings.github) } },
-      { id: 'feishu', kind: 'feishu', title: both('飞书'), installed: true, value: { enabled: true, config: settings.feishu }, revision: settings.revisions['source:feishu']!, fields: [], labels: { ...settings.joined },
-        policy: { fields: [{ key: 'allowed', ...rows, label: both('名单') }, { key: 'syncChat', type: 'choose', label: both('同步名单的群') }, { key: 'bots', ...rows, label: both('bot 列表') }],
-          explicit: both('名单内的人 @ 机器人或私聊机器人，总是明确的请求，不需要配置。'), rows: feishuRows(settings.feishu),
-          sync: { label: both('立即同步'), ready: !!settings.policy.sources.feishu?.syncChat, health: { state: 'ready', detail: 'Synced 23 members' } } } },
+        policy: { fields: [{ key: 'allowed', ...rows, label: both('Allow list', '名单') }, { key: 'bots', ...rows, label: both('Bot list', 'bot 列表') }],
+          explicit: both('An account on the list @ the agent account in an Issue or comment.', '名单里的账号在 Issue 或评论里 @ 智能体的账号。'), rows: githubRows(settings.github) } },
+      { id: 'feishu', kind: 'feishu', title: both('Feishu', '飞书'), installed: true, value: { enabled: true, config: settings.feishu }, revision: settings.revisions['source:feishu']!, fields: [], labels: { ...settings.joined },
+        policy: { fields: [{ key: 'allowed', ...rows, label: both('Allow list', '名单') }, { key: 'syncChat', type: 'choose', label: both('Allow-list sync group', '同步名单的群') }, { key: 'bots', ...rows, label: both('Bot list', 'bot 列表') }],
+          explicit: both('Someone on the list who @ the bot or messages it directly is always an explicit request; nothing to configure.', '名单内的人 @ 机器人或私聊机器人，总是明确的请求，不需要配置。'), rows: feishuRows(settings.feishu),
+          sync: { label: both('Sync now', '立即同步'), ready: !!settings.policy.sources.feishu?.syncChat, health: { state: 'ready', detail: 'Synced 23 members' } } } },
     ],
     environment: { root: '~/.dsh/state/superagent/work', variables: [
-      { owner: 'executor', enabled: true, variables: [{ key: 'DSH_SUPERAGENT_DIR', description: both('Ticket 的目录') }, { key: 'DSH_SUPERAGENT_NAME', description: both('Ticket 的短名，也是分支名的最后一段') },
-        { key: 'DSH_SUPERAGENT_TICKET', description: both('Ticket 的 id') }, { key: 'DSH_SUPERAGENT_BLOCKED_COMMANDS', description: both('不让 worker 运行的命令') }] },
-      { owner: 'github', enabled: true, variables: [{ key: 'DSH_SUPERAGENT_GITHUB_REPOSITORY', description: both('监听的仓库，owner/name') },
-        { key: 'DSH_SUPERAGENT_GITHUB_ACCOUNT', description: both('agent 账号') }, { key: 'DSH_SUPERAGENT_GITHUB_NUMBER', description: both('Ticket 起点的 Issue 或 PR 编号') },
-        { key: 'DSH_SUPERAGENT_GITHUB_PR_HEAD', description: both('起点是 PR 时它的 head') }] },
-      { owner: 'feishu', enabled: true, variables: [{ key: 'DSH_SUPERAGENT_FEISHU_CHAT', description: both('Ticket 起点所在的群') }] },
+      { owner: 'executor', enabled: true, variables: [{ key: 'DSH_SUPERAGENT_DIR', description: both("The Ticket's directory", 'Ticket 的目录') }, { key: 'DSH_SUPERAGENT_NAME', description: both("The Ticket's short name, also the last part of the branch name", 'Ticket 的短名，也是分支名的最后一段') },
+        { key: 'DSH_SUPERAGENT_TICKET', description: both("The Ticket's id", 'Ticket 的 id') }, { key: 'DSH_SUPERAGENT_BLOCKED_COMMANDS', description: both('Commands workers may not run', '不让 worker 运行的命令') }] },
+      { owner: 'github', enabled: true, variables: [{ key: 'DSH_SUPERAGENT_GITHUB_REPOSITORY', description: both('The watched repository, owner/name', '监听的仓库，owner/name') },
+        { key: 'DSH_SUPERAGENT_GITHUB_ACCOUNT', description: both('The agent account', 'agent 账号') }, { key: 'DSH_SUPERAGENT_GITHUB_NUMBER', description: both('Number of the Issue or PR the Ticket started from', 'Ticket 起点的 Issue 或 PR 编号') },
+        { key: 'DSH_SUPERAGENT_GITHUB_PR_HEAD', description: both('Its head, when the Ticket started from a PR', '起点是 PR 时它的 head') }] },
+      { owner: 'feishu', enabled: true, variables: [{ key: 'DSH_SUPERAGENT_FEISHU_CHAT', description: both('The group the Ticket started in', 'Ticket 起点所在的群') }] },
     ] },
   }
 }
@@ -219,9 +221,9 @@ function saveOther(settings: MockSettings, block: string, value: unknown, source
 /** `POST policy-sync/feishu`: the chat gained a member since the last sync. */
 export function syncFeishu(settings: MockSettings): { policy: unknown } {
   const part = settings.policy.sources.feishu!
-  if (part.allowed.some(entry => entry.id === 'ou_wangfang')) return { policy: part }
+  if (part.allowed.some(entry => entry.id === 'ou_wendy')) return { policy: part }
   const policy = structuredClone(settings.policy)
-  policy.sources.feishu!.allowed = [...part.allowed, { id: 'ou_wangfang', name: '王芳' }]
+  policy.sources.feishu!.allowed = [...part.allowed, { id: 'ou_wendy', name: 'Wendy' }]
   saveBlock(settings, 'policy', { value: policy, revision: settings.revisions.policy }, 'sync')
   return { policy: settings.policy.sources.feishu }
 }
@@ -230,32 +232,32 @@ export function syncFeishu(settings: MockSettings): { policy: unknown } {
 export function seedDecisions(now: number): DecisionView[] {
   const at = (hours: number) => new Date(now - hours * 3_600_000).toISOString()
   const judged = (hit: string | null, why: string) => RULES.map(rule => ({ id: rule.id, name: rule.name, matched: rule.id === hit,
-    reason: rule.id === hit ? why : rule.id === 'silent' ? '不是可复现的缺陷报告' : rule.id === 'triage' ? '不是新 issue' : '与依赖无关' }))
+    reason: rule.id === hit ? why : rule.id === 'silent' ? 'Not a reproducible defect report' : rule.id === 'triage' ? 'Not a new issue' : 'Unrelated to dependencies' }))
   const make = (id: string, hours: number, thread: string, threadTitle: string, preview: string, hit: string | null, why: string): DecisionView => ({
     id, kind: 'ignore', outcome: hit ? 'wouldAccept' : 'ignore', strength: 'inferred', at: at(hours), triggerIds: [`trg_${id}`], thread, threadTitle, preview,
     reason: hit ? [{ code: 'observed', values: { text: why } }] : [{ code: 'noRuleMatched' }], rules: judged(hit, why),
   })
   const users = 'feishu:oc_harness_users'
   const list: DecisionView[] = [
-    make('dec_eaddr', 1.6, `${users}/t_eaddr`, '升级后 dsh web 起不来', '升级到 0.2.1 之后 dsh web 起不来了，报 EADDRINUSE，换端口也一样', 'silent', '描述了可复现的启动失败，带版本号和报错'),
-    { ...make('dec_322', 1.2, 'github:pull/322', 'Bump vitest from 4.1.8 to 4.1.9', 'Bump vitest from 4.1.8 to 4.1.9 · 检查失败：2 个测试超时', 'deps', '依赖机器人的 PR 检查失败') },
-    make('dec_160', 3, 'github:issue/160', 'Feature request: dark mode for the terminal', 'Feature request: dark mode for the built-in terminal', 'triage', '新 issue，缺少复现信息'),
-    make('dec_d4', 20, 'feishu:oc_harness_dev/t_timeout', 'e2e 超时要不要可配置', '我们是不是该把 e2e 超时做成可配置的？大家怎么看', 'silent', '讨论里提到了超时问题'),
-    make('dec_d5', 26, `${users}/t_proxy`, '公司网络下怎么配代理', '有人知道公司网络下怎么给 dsh 配代理吗', null, ''),
-    make('dec_161', 30, 'github:issue/161', 'Crash when the workspace path contains spaces', 'Crash when the workspace path contains spaces（附完整堆栈）', 'triage', '新 issue，带堆栈，适合先分诊'),
+    make('dec_eaddr', 1.6, `${users}/t_eaddr`, "dsh web won't start after upgrading", "dsh web won't start since upgrading to 0.2.1: EADDRINUSE, even on another port", 'silent', 'Describes a reproducible startup failure with the version and error'),
+    { ...make('dec_322', 1.2, 'github:pull/322', 'Bump vitest from 4.1.8 to 4.1.9', 'Bump vitest from 4.1.8 to 4.1.9 · checks failed: 2 tests timed out', 'deps', "A dependency bot's PR failed its checks") },
+    make('dec_160', 3, 'github:issue/160', 'Feature request: dark mode for the terminal', 'Feature request: dark mode for the built-in terminal', 'triage', 'A new issue without reproduction details'),
+    make('dec_d4', 20, 'feishu:oc_harness_dev/t_timeout', 'Should the e2e timeout be configurable?', 'Should we make the e2e timeout configurable? What do you all think?', 'silent', 'The discussion mentions a timeout problem'),
+    make('dec_d5', 26, `${users}/t_proxy`, 'Proxy setup on the office network', 'Does anyone know how to set up a proxy for dsh on the office network?', null, ''),
+    make('dec_161', 30, 'github:issue/161', 'Crash when the workspace path contains spaces', 'Crash when the workspace path contains spaces (full stack trace attached)', 'triage', 'A new issue with a stack trace; good to triage first'),
   ]
-  const silent = ['会话列表偶尔不刷新，重启后正常，0.2.1', '粘贴大段日志后输入框卡死，稳定复现', '切换 profile 后插件设置丢了', 'dsh web 在 Safari 里滚动跳动，Chrome 正常',
-    'Windows 上 node --watch 改文件不生效', '模型切换后历史消息显示错位']
-  silent.forEach((text, i) => list.push(make(`dec_s${i}`, 40 + i * 22, `${users}/t_s${i}`, text.slice(0, 18), text, 'silent', '可复现的缺陷，带版本或步骤')))
+  const silent = ["The session list sometimes doesn't refresh; fine after a restart, 0.2.1", 'The input box freezes after pasting a long log; reproduces every time', 'Plugin settings are lost after switching profiles', 'dsh web jumps while scrolling in Safari; Chrome is fine',
+    "On Windows, node --watch doesn't pick up file changes", 'Earlier messages render out of place after switching models']
+  silent.forEach((text, i) => list.push(make(`dec_s${i}`, 40 + i * 22, `${users}/t_s${i}`, text.slice(0, 40), text, 'silent', 'A reproducible defect, with a version or steps')))
   const triage = ['Docs: typo in README', 'Question: how to set a proxy?', 'Add support for Ruby LSP', 'Error when opening a large file', 'Make the sidebar resizable',
     'Feature: export session as markdown', 'Settings page is blank', 'Crash on startup after upgrade', 'Support GitLab as a source']
-  triage.forEach((text, i) => list.push(make(`dec_t${i}`, 34 + i * 30, `github:issue/${180 + i}`, text, text, 'triage', '新 issue，缺少复现信息')))
+  triage.forEach((text, i) => list.push(make(`dec_t${i}`, 34 + i * 30, `github:issue/${180 + i}`, text, text, 'triage', 'A new issue without reproduction details')))
   // People not on the list who asked and were turned away by the gate.
   const away = (id: string, hours: number, thread: string, title: string, preview: string): DecisionView =>
     ({ id, kind: 'ignore', outcome: 'ignore', strength: 'explicit', at: at(hours), triggerIds: [`trg_${id}`], thread, threadTitle: title, preview, reason: [{ code: 'senderNotMember' }], rules: [] })
-  list.push(away('dec_170', 0.9, 'github:issue/170', 'README 的安装步骤看不懂', '@acme-agent 能帮忙看下 README 的安装步骤吗？第三步跑不通'))
-  ;['@Harness 助手 帮我看看这个报错', '@Harness 助手 升级后插件都没了', '@Harness 助手 怎么切换模型？'].forEach((text, i) =>
-    list.push(away(`dec_away_${i}`, 5 + i * 30, `${users}/t_away`, 'harness-users 群', text)))
+  list.push(away('dec_170', 0.9, 'github:issue/170', "Can't follow the README install steps", "@acme-agent could you look at the README install steps? Step 3 doesn't work"))
+  ;['@Harness Bot can you look at this error', '@Harness Bot all my plugins are gone after upgrading', '@Harness Bot how do I switch models?'].forEach((text, i) =>
+    list.push(away(`dec_away_${i}`, 5 + i * 30, `${users}/t_away`, 'harness-users group', text)))
   return list.sort((a, b) => b.at.localeCompare(a.at))
 }
 

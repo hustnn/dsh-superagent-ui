@@ -2,6 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Connection, ThreadRef } from '@dsh-superagent-ui/contract'
 import { ApiError } from '../api'
+import { t } from '../i18n'
 import { SOURCE_NAME, UPSTREAM, type Tone } from '../text'
 
 export function Pill({ tone = 'muted', dot = true, children }: { tone?: Tone; dot?: boolean; children: ReactNode }) {
@@ -43,7 +44,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
         <h2 id="dlg-title">{request.title}</h2>
         <div className="sub dlg-body">{request.body}</div>
         <div className="acts">
-          <button className="btn ghost" onClick={() => answer(false)}>取消</button>
+          <button className="btn ghost" onClick={() => answer(false)}>{t('Cancel', '取消')}</button>
           <button className="btn primary" autoFocus onClick={() => answer(true)}>{request.action}</button>
         </div>
       </div>

@@ -8,7 +8,7 @@ A local console for the operator of [dsh-superagent](https://github.com/deepseek
 
 > This is a community project, not an official DeepSeek product. dsh-superagent itself is a research prototype; read the [security notes](#security) below before using it.
 
-The console UI is in Chinese only. The docs are available in English and Chinese.
+The console and the docs are in English and Chinese. The console starts in English; the button at the top right switches it.
 
 ## Features
 

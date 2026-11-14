@@ -16,6 +16,7 @@ import type { LiveHub } from './live.ts'
 import { localPrincipal, type AccessMode, type Principal } from './security/access.ts'
 import { COOKIE, SESSION_MAX_AGE_S, issueSession, tokenMatches, validSession, type Secrets } from './security/session.ts'
 import { trusted } from './security/trust.ts'
+import { parseLang, t, withLang } from './i18n.ts'
 import { UpstreamError, type ConnectionMonitor, type UpstreamClient } from './upstream/client.ts'
 import type { SetupProblem } from './upstream/types.ts'
 import { companionState, saidMessages, transcriptView } from './views/companion.ts'
@@ -70,6 +71,8 @@ export function createApp(deps: AppDeps): { app: Hono<Env>; routes: RouteSpec[] 
   const app = new Hono<Env>()
   const routes: RouteSpec[] = []
 
+  // Every view and message below is worded in the language the console asked for.
+  app.use('/api/*', (c, next) => withLang(parseLang(c.req.header('x-console-lang')), next))
   app.use('/api/*', async (c, next) => {
     const trust = trusted(name => c.req.header(name), { port: deps.port, origins: deps.devOrigins })
     if (!trust.ok) return failure(c, 403, 'forbidden', `Request refused: untrusted ${trust.reason}`)
@@ -120,7 +123,7 @@ export function createApp(deps: AppDeps): { app: Hono<Env>; routes: RouteSpec[] 
   /** A save names the revision the console read; upstream refuses it when someone saved in between. */
   const guarded = async <T>(call: Promise<T>): Promise<T> => {
     try { return await watch(call) } catch (error) {
-      if (error instanceof UpstreamError && error.status === 409) throw new Conflict('设置在你编辑期间被别人改过（可能是主 Session、同步或另一个页面）。重新载入后再保存。')
+      if (error instanceof UpstreamError && error.status === 409) throw new Conflict(t('Someone else changed these settings while you were editing (perhaps the main Session, a sync, or another page). Reload, then save again.', '设置在你编辑期间被别人改过（可能是主 Session、同步或另一个页面）。重新载入后再保存。'))
       throw error
     }
   }
@@ -222,7 +225,7 @@ export function createApp(deps: AppDeps): { app: Hono<Env>; routes: RouteSpec[] 
     if (typeof body?.enabled !== 'boolean' || typeof body.revision !== 'number') throw new BadRequest('Body must be {"enabled": bool, "revision": n, ...}')
     const settings = await watch(upstream.settings())
     const source = settings.sources.find(item => item.id === id(c))
-    if (!source) throw new NotFound('没有这个来源')
+    if (!source) throw new NotFound(t('No such source', '没有这个来源'))
     const config = mergeSource(source.kind, source.value.config, body as SourceSave)
     return guarded(upstream.saveSettings(`source:${source.id}`, { enabled: body.enabled, config }, body.revision))
   }, id)
@@ -233,12 +236,12 @@ export function createApp(deps: AppDeps): { app: Hono<Env>; routes: RouteSpec[] 
     if (typeof body?.cli !== 'string' || typeof body.revision !== 'number') throw new BadRequest('Body must be {"cli": "...", "revision": n, "repository"?: "owner/name"}')
     const settings = await watch(upstream.settings())
     const source = settings.sources.find(item => item.id === id(c))
-    if (!source) throw new NotFound('没有这个来源')
+    if (!source) throw new NotFound(t('No such source', '没有这个来源'))
     const config = mergeAccount(source.kind, source.value.config, body as SourceAccountSave)
     try { return await guarded(upstream.saveSettings(`source:${source.id}`, { enabled: source.value.enabled, config }, body.revision)) }
     catch (error) {
       const problem = error instanceof UpstreamError ? error.body?.setup as SetupProblem | undefined : undefined
-      if (problem) throw new DraftError(`账号检查没通过，什么都没保存：${setupText(problem)}`)
+      if (problem) throw new DraftError(t(`The account check failed, so nothing was saved: ${setupText(problem)}`, `账号检查没通过，什么都没保存：${setupText(problem)}`))
       throw error
     }
   }, id)
@@ -304,7 +307,7 @@ export function createApp(deps: AppDeps): { app: Hono<Env>; routes: RouteSpec[] 
     const label = body?.label
     if (label !== null && label !== 'right' && label !== 'wrong' && label !== 'scope') throw new BadRequest('Body must be {"label": "right"|"wrong"|"scope"|null}')
     const decision = (await judgements(watched(upstream, watch))).find(item => item.id === id(c))
-    if (!decision) throw new NotFound('这条判断不在最近两周的记录里')
+    if (!decision) throw new NotFound(t('This judgment is not in the last two weeks of records', '这条判断不在最近两周的记录里'))
     if (label === null) labels.clear(decision.id)
     else labels.set({ decisionId: decision.id, label: label as CalibrationLabel, ...typeof body?.note === 'string' && body.note.trim() ? { note: body.note.trim() } : {},
       outcome: decision.outcome, rules: decision.rules.filter(rule => rule.matched).map(rule => rule.id) })

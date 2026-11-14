@@ -1,5 +1,9 @@
-/** Calls to the BFF. Mutations carry `x-console-request: 1`, which the BFF requires and no cross-site form can send. */
+/**
+ * Calls to the BFF. Mutations carry `x-console-request: 1`, which the BFF requires and no cross-site form can send. Every call
+ * names the console's language, which the BFF words its views in.
+ */
 import type { Api, ApiFailure } from '@dsh-superagent-ui/contract'
+import { lang, t } from './i18n'
 
 export class ApiError extends Error {
   readonly status: number
@@ -12,6 +16,8 @@ export class ApiError extends Error {
     this.upstream = upstream
   }
 }
+
+const OFFLINE = () => t('The console backend is not responding. Check that pnpm dev or pnpm start is still running.', '控制台后端没有响应。确认 pnpm dev 或 pnpm start 还在运行。')
 
 type Route = keyof Api
 type Params<R extends Route> = R extends `${string}:id${string}` ? { id: string } : unknown
@@ -29,17 +35,17 @@ export async function call<R extends Route>(route: R, options: { params?: Params
     response = await fetch(path, {
       method,
       credentials: 'same-origin',
-      headers: { ...method === 'GET' ? {} : { 'x-console-request': '1' }, ...options.body === undefined ? {} : { 'content-type': 'application/json' } },
+      headers: { 'x-console-lang': lang, ...method === 'GET' ? {} : { 'x-console-request': '1' }, ...options.body === undefined ? {} : { 'content-type': 'application/json' } },
       ...options.body === undefined ? {} : { body: JSON.stringify(options.body) },
     })
   } catch {
-    throw new ApiError(0, 'offline', '控制台后端没有响应。确认 pnpm dev 或 pnpm start 还在运行。')
+    throw new ApiError(0, 'offline', OFFLINE())
   }
   const value = await response.json().catch(() => null) as unknown
   if (!response.ok) {
     const failure = (value as ApiFailure | null)?.error
     // Vite answers 5xx with no JSON when the BFF behind its proxy is down.
-    if (!failure) throw new ApiError(response.status, 'offline', '控制台后端没有响应。确认 pnpm dev 或 pnpm start 还在运行。')
+    if (!failure) throw new ApiError(response.status, 'offline', OFFLINE())
     throw new ApiError(response.status, failure.kind, failure.message, failure.upstream)
   }
   return value as Api[R]['response']

@@ -44,7 +44,7 @@ describe('views', () => {
     const home = await (await h.call('/api/home')).json() as HomeView
     expect(home.connection.upstream).toBe('ok')
     expect(home.person.map(item => [item.id, item.action])).toEqual([['tk_142', 'answer'], ['tk_318', 'review'], ['tk_139', 'failed']])
-    expect(home.person[0]?.question).toMatch(/30s 提到 60s/)
+    expect(home.person[0]?.question).toMatch(/from 30s to 60s/)
     expect(home.person[0]?.reply?.url).toMatch(/issues\/142$/)
     expect(home.status).toMatchObject({ running: 3, queued: 1, idle: 2, maxWorkers: 3, paused: false, repository: 'acme/harness-app' })
     // Nothing basic is missing, so the next step is to review the proactive judgements observe mode recorded.
@@ -64,7 +64,7 @@ describe('views', () => {
     world.tickets = []
     h = await harness({ world })
     const home = await (await h.call('/api/home')).json() as HomeView
-    expect(home.next).toEqual({ kind: 'first-request', repository: 'acme/harness-app', agent: 'acme-agent', bot: 'Harness 助手' })
+    expect(home.next).toEqual({ kind: 'first-request', repository: 'acme/harness-app', agent: 'acme-agent', bot: 'Harness Bot' })
   })
   it('health shows sources, all problems, and the audit log', async () => {
     h = await harness()

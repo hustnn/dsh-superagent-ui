@@ -12,17 +12,17 @@ const person = (source: 'github' | 'feishu', id: string, name?: string): ActorVi
 
 /** Who asked for each Ticket, and how. */
 export const REQUESTS: Record<string, { by: ActorView; text: string }> = {
-  tk_142: { by: person('github', 'alice', 'alice'), text: '@acme-agent 帮忙看下这个 flaky，e2e 最近老是超时' },
-  tk_318: { by: person('feishu', 'ou_zhouzhou', '周舟'), text: '@Harness 助手 撤回的消息还会被当成新请求，修一下' },
-  tk_139: { by: person('github', 'carol', 'carol'), text: '@acme-agent 帮忙复现一下这个泄漏' },
-  tk_151: { by: person('github', 'alice', 'alice'), text: '@acme-agent 上传接口加个重试，最多 3 次' },
-  tk_161: { by: person('feishu', 'ou_zhouzhou', '周舟'), text: '@Harness 助手 lark-cli 出 1.9 了，升一下' },
-  tk_163: { by: person('github', 'carol', 'carol'), text: '@acme-agent 中文路径的工作区打不开' },
-  tk_155: { by: person('feishu', 'ou_lilei', '李雷'), text: '@Harness 助手 README 的部署说明补一下' },
-  tk_133: { by: person('github', 'alice', 'alice'), text: '@acme-agent CI 缓存好像失效了，每次都全量安装' },
-  tk_147: { by: person('github', 'carol', 'carol'), text: '@acme-agent 文档站这个链接 404' },
-  tk_120: { by: person('github', 'alice', 'alice'), text: '@acme-agent 把 zod 升到 4.4' },
-  tk_128: { by: person('feishu', 'ou_lilei', '李雷'), text: '@Harness 助手 dsh web 偶尔白屏' },
+  tk_142: { by: person('github', 'alice', 'alice'), text: '@acme-agent can you look at this flaky one? e2e keeps timing out lately' },
+  tk_318: { by: person('feishu', 'ou_dana', 'Dana'), text: '@Harness Bot recalled messages still count as new requests, please fix' },
+  tk_139: { by: person('github', 'carol', 'carol'), text: '@acme-agent please reproduce this leak' },
+  tk_151: { by: person('github', 'alice', 'alice'), text: '@acme-agent add retries to the upload endpoint, 3 at most' },
+  tk_161: { by: person('feishu', 'ou_dana', 'Dana'), text: '@Harness Bot lark-cli 1.9 is out, please upgrade' },
+  tk_163: { by: person('github', 'carol', 'carol'), text: "@acme-agent workspaces with non-ASCII paths won't open" },
+  tk_155: { by: person('feishu', 'ou_leo', 'Leo'), text: '@Harness Bot please expand the README deployment notes' },
+  tk_133: { by: person('github', 'alice', 'alice'), text: '@acme-agent the CI cache seems broken, it installs everything every time' },
+  tk_147: { by: person('github', 'carol', 'carol'), text: '@acme-agent this link on the docs site is a 404' },
+  tk_120: { by: person('github', 'alice', 'alice'), text: '@acme-agent bump zod to 4.4' },
+  tk_128: { by: person('feishu', 'ou_leo', 'Leo'), text: '@Harness Bot dsh web sometimes shows a blank page' },
 }
 
 export interface MockThread {
@@ -74,8 +74,8 @@ export function seedThreads(now: number, tickets: TicketRow[]): MockThread[] {
   const at = (minutes: number) => ago(now, minutes)
   const gh = (path: string) => `https://github.com/${REPO}/${path}`
   const more: [string, TriggerView][] = [
-    ['github:issue/142', trigger('trg_ci_142', 'github:issue/142', { source: 'github', id: '' }, false, at(140), 'e2e (ubuntu-latest) 失败：3 个测试超时', { fanout: ['tk_142'] })],
-    ['github:issue/151', trigger('trg_bob_151', 'github:issue/151', person('github', 'bob'), true, at(5), '@acme-agent 顺便把超时日志也打出来', { fanout: ['tk_151'], delivered: true }, gh('issues/151#issuecomment-2210'))],
+    ['github:issue/142', trigger('trg_ci_142', 'github:issue/142', { source: 'github', id: '' }, false, at(140), 'e2e (ubuntu-latest) failed: 3 tests timed out', { fanout: ['tk_142'] })],
+    ['github:issue/151', trigger('trg_bob_151', 'github:issue/151', person('github', 'bob'), true, at(5), '@acme-agent while you are at it, log the timeouts too', { fanout: ['tk_151'], delivered: true }, gh('issues/151#issuecomment-2210'))],
   ]
   for (const [key, value] of more) threads.get(key)?.triggers.push(value)
 
@@ -84,25 +84,25 @@ export function seedThreads(now: number, tickets: TicketRow[]): MockThread[] {
     thread.triggers.push(value)
     Object.assign(thread, patch)
   }
-  extra('github:issue/170', 'github', 'README 的安装步骤看不懂', gh('issues/170'),
-    trigger('trg_bob_170', 'github:issue/170', person('github', 'bob'), true, at(50), '@acme-agent 能帮忙看下 README 的安装步骤吗？第三步跑不通',
+  extra('github:issue/170', 'github', "Can't follow the README install steps", gh('issues/170'),
+    trigger('trg_bob_170', 'github:issue/170', person('github', 'bob'), true, at(50), "@acme-agent could you look at the README install steps? Step 3 doesn't work",
       decided('dec_170', 'ignore', [{ code: 'senderNotMember' }]), gh('issues/170#issuecomment-2190'), true))
-  extra('feishu:oc_harness_users/t_eaddr', 'feishu', '升级后 dsh web 起不来', 'https://applink.feishu.cn/client/chat/open?openChatId=oc_harness_users',
-    trigger('trg_eaddr', 'feishu:oc_harness_users/t_eaddr', person('feishu', 'ou_bob', 'bob'), true, at(95), '升级到 0.2.1 之后 dsh web 起不来了，报 EADDRINUSE，换端口也一样',
-      decided('dec_eaddr', 'wouldAccept', [{ code: 'observed', values: { text: '描述了可复现的启动失败，带版本号和报错，命中「静默复现修复」' } }])))
+  extra('feishu:oc_harness_users/t_eaddr', 'feishu', "dsh web won't start after upgrading", 'https://applink.feishu.cn/client/chat/open?openChatId=oc_harness_users',
+    trigger('trg_eaddr', 'feishu:oc_harness_users/t_eaddr', person('feishu', 'ou_bob', 'bob'), true, at(95), "dsh web won't start since upgrading to 0.2.1: EADDRINUSE, even on another port",
+      decided('dec_eaddr', 'wouldAccept', [{ code: 'observed', values: { text: 'Describes a reproducible startup failure with the version and error; matches "Silent reproduce-and-fix"' } }])))
   extra('github:pull/322', 'github', 'Bump vitest from 4.1.8 to 4.1.9', gh('pull/322'),
     trigger('trg_322', 'github:pull/322', { source: 'github', id: 'dependabot[bot]', name: { zh: 'dependabot[bot]', en: 'dependabot[bot]' } }, false, at(70),
-      'Bump vitest from 4.1.8 to 4.1.9 · 检查失败：2 个测试超时', decided('dec_322', 'wouldAccept', [{ code: 'observed', values: { text: '依赖机器人的 PR 检查失败，命中「依赖升级跟进」' } }]), gh('pull/322')))
-  extra('github:issue/158', 'github', 'Windows 下路径大小写', gh('issues/158'),
-    trigger('trg_158', 'github:issue/158', person('github', 'carol', 'carol'), true, at(30), '@acme-agent Windows 下路径大小写不一致，导致同一个文件被打开两次',
+      'Bump vitest from 4.1.8 to 4.1.9 · checks failed: 2 tests timed out', decided('dec_322', 'wouldAccept', [{ code: 'observed', values: { text: 'A dependency bot PR failed its checks; matches "Dependency upgrade follow-up"' } }]), gh('pull/322')))
+  extra('github:issue/158', 'github', 'Path case on Windows', gh('issues/158'),
+    trigger('trg_158', 'github:issue/158', person('github', 'carol', 'carol'), true, at(30), '@acme-agent path case differs on Windows, so the same file opens twice',
       decided('dec_158', 'unavailable', [{ code: 'timeout' }]), gh('issues/158#issuecomment-2201'), true))
   return [...threads.values()]
 }
 
 /** A message a Source filtered before it reached any thread; only search finds it. */
 export function filteredTrigger(now: number): TriggerView & { filtered: Reason } {
-  const value = trigger('trg_filtered_1', 'feishu:oc_random/t_room', person('feishu', 'ou_hanmeimei', '韩梅梅'), true, ago(now, 200),
-    '@Harness 助手 帮我订一下下周的会议室', { filtered: { code: 'chat_not_allowed' } })
+  const value = trigger('trg_filtered_1', 'feishu:oc_random/t_room', person('feishu', 'ou_mei', 'Mei'), true, ago(now, 200),
+    '@Harness Bot please book a meeting room for next week', { filtered: { code: 'chat_not_allowed' } })
   return { ...value, filtered: { code: 'chat_not_allowed' } }
 }
 
@@ -148,7 +148,7 @@ export function ticketPage(row: TicketRow, threads: MockThread[], policyVersion:
     .map((item): InputView => ({ id: `in_${item.id}`, kind: 'trigger', triggerId: item.id, at: item.at, delivered: true, ...item.human ? { human: true as const } : {},
       ...thread.context.includes(row.id) ? { context: true as const } : {},
       trigger: { id: item.id, actor: item.actor, human: item.human, preview: item.preview, thread: thread.key } })))
-  if (row.id === 'tk_161') inputs.push({ id: 'in_note_161', kind: 'note', at: row.updatedAt, delivered: true, text: '飞书 bot 的 token 过期由运维处理，不用在这个 Ticket 里修。' })
+  if (row.id === 'tk_161') inputs.push({ id: 'in_note_161', kind: 'note', at: row.updatedAt, delivered: true, text: "Ops handles the Feishu bot's expired token; no need to fix it in this Ticket." })
   inputs.sort((a, b) => b.at.localeCompare(a.at))
   const subscribed = threads.filter(thread => thread.subscriptions.includes(row.id))
   const { threads: _rows, assignments: _a, inputs: _i, ...rest } = row

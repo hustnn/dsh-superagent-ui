@@ -4,9 +4,11 @@
 
 给 [dsh-superagent](https://github.com/deepseek-ai/dsh-superagent-prototype) 的 operator 用的本地控制台。团队成员照旧在 GitHub 或飞书里找 agent；你在这里处理需要你的事，看它是否健康，再逐步放手让它主动干活。
 
-![控制台首页，图中是内置的示例数据](docs/images/home.png)
+![控制台首页，图中是内置的示例数据](docs/images/home.zh.png)
 
 > 这是社区项目，不是 DeepSeek 的官方产品。dsh-superagent 本身也是研究原型，使用前请看下面的[安全提示](#安全提示)。
+
+控制台和文档都有中英文两种。控制台默认是英文，点右上角的按钮可以切换成中文。
 
 ## 功能
 

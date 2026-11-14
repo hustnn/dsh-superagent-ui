@@ -15,11 +15,11 @@ describe('transcript', () => {
     const view = await json<TranscriptView>(await h.call('/api/tickets/tk_318/transcript'))
     expect(view).toMatchObject({ companion: { installed: true }, sessionId: 'worker-tk_318', exists: true, running: false, more: false })
     expect(view.items.map(item => item.kind)).toEqual(['turn', 'input', 'thinking', 'tool', 'tool', 'tool', 'say', 'turn'])
-    expect(view.items[1]).toMatchObject({ kind: 'input', label: '派工', text: '飞书：撤回的消息不再触发新请求\n@acme-agent 飞书：撤回的消息不再触发新请求' })
+    expect(view.items[1]).toMatchObject({ kind: 'input', label: 'Dispatch', text: 'Feishu: recalled messages no longer start new requests\n@acme-agent Feishu: recalled messages no longer start new requests' })
     const tools = view.items.filter((item): item is Extract<TranscriptItem, { kind: 'tool' }> => item.kind === 'tool')
     expect(tools.map(tool => [tool.name, tool.label, tool.ok, tool.exit])).toEqual([
       ['edit', 'src/sources/feishu.ts', true, undefined], ['bash', 'Run the tests', true, '0'], ['bash', 'Open the pull request', true, '0']])
-    expect(view.items.at(-1)).toMatchObject({ kind: 'turn', text: '第 1 轮结束' })
+    expect(view.items.at(-1)).toMatchObject({ kind: 'turn', text: 'Turn 1 ended' })
 
     expect(view).toMatchObject({ models: ['deepseek · deepseek-v4-pro'], model: 'deepseek · deepseek-v4-pro' })
   })
@@ -130,12 +130,12 @@ describe('what the agent said', () => {
     const view = await json<TicketView>(await h.call('/api/tickets/tk_142'))
     expect(view.said?.map(message => [message.kind, message.status])).toEqual([['acknowledgement', 'sent'], ['reply', 'sent'], ['reply', 'sent']])
     const pending = await json<TicketView>(await h.call('/api/tickets/tk_161'))
-    expect(pending.said).toEqual([{ kind: 'acknowledgement', status: 'pending', source: 'feishu', text: '收到，我来升级 lark-cli 到 1.9。' }])
+    expect(pending.said).toEqual([{ kind: 'acknowledgement', status: 'pending', source: 'feishu', text: 'On it: upgrading lark-cli to 1.9.' }])
   })
   it('counts messages per Ticket over the insights period, and names the one that said the most', async () => {
     h = await harness()
     const { speech } = await json<InsightsView>(await h.call('/api/insights'))
-    expect(speech).toMatchObject({ pending: 1, dropped: 1, perTicket: { max: 3, top: { id: 'tk_142', title: '修复 e2e 测试偶发超时', count: 3 } } })
+    expect(speech).toMatchObject({ pending: 1, dropped: 1, perTicket: { max: 3, top: { id: 'tk_142', title: 'Fix flaky e2e timeouts', count: 3 } } })
     expect(speech!.messages.acknowledgement).toBe(speech!.tickets)
     expect((await json<HealthView>(await h.call('/api/health'))).companion).toEqual({ installed: true, version: '0.3.0' })
   })

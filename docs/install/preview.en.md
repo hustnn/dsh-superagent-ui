@@ -47,7 +47,7 @@ This is a long-running process; run it in the background:
 cd "$HOME/src/dsh-superagent-ui" && pnpm dev:mock
 ```
 
-Passes if the output has a line `Superagent 控制台  http://127.0.0.1:5173/?token=…`.
+Passes if the output has a line `Superagent console  http://127.0.0.1:5173/?token=…`.
 
 If it reports a port already in use, first check whether a console is already running on this machine (the BFF uses port 3090 by default). Set `CONSOLE_PORT` to use another BFF port.
 
@@ -56,7 +56,7 @@ If it reports a port already in use, first check whether a console is already ru
 Send the link to the operator and tell them:
 
 - Open the link in a browser. The sample data moves one step every 20 seconds, so the pages update live.
-- The console UI is in Chinese.
+- The console starts in English; the button at the top right switches it to Chinese.
 - Anything done here only affects the sample data.
 - To use it for real, give the agent the "Connect GitHub" prompt from the README.
 
